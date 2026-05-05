@@ -47,10 +47,10 @@ If you are adopting CLEAR into an **existing** project (most common), run the un
 
 This copies all CLEAR files into your project and then launches the setup wizard automatically. Existing files in your project are never overwritten — directories are merged and individual files are skipped if they already exist.
 
-If the target already has CLEAR installed, run the same command again (update is auto-detected):
+If the target already has CLEAR installed, use `--update`:
 
 ```bash
-./scripts/clear-installer.sh --target /path/to/your-project
+./scripts/clear-installer.sh --update --target /path/to/your-project
 ```
 
 **Options:**
@@ -59,6 +59,7 @@ If the target already has CLEAR installed, run the same command again (update is
 |------|-------------|
 | `--dry-run` | Show what would be copied without writing anything |
 | `--target <path>` | Explicit target repository path |
+| `--update` | Required when updating a project that already has CLEAR installed |
 | `--no-setup` | Install/update files only; skip setup wizard |
 | `--install-examples <path>` | Extract domain-specific examples to `<path>` and exit |
 | `--extract <path>` | Extract embedded payload only (release installer mode) |
@@ -80,7 +81,7 @@ The setup wizard will:
 
 ```bash
 # From the clear/ seed repository root:
-./scripts/clear-installer.sh --target /path/to/your-project
+./scripts/clear-installer.sh --update --target /path/to/your-project
 ```
 
 ---

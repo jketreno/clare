@@ -39,12 +39,12 @@ Want to know the thought process that led to CLEAR's design? Read the [origin st
 ### 1 — Install CLEAR into your project
 
 <!-- RELEASE_VERSION_START -->
-**Latest release: [v1.1.0](https://github.com/jketreno/clear/releases/tag/v1.1.0)**
+**Latest release: [v1.2.0](https://github.com/jketreno/clear/releases/tag/v1.2.0)**
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clear/releases/download/v1.1.0/clear-installer-v1.1.0.sh
-chmod +x ./clear-installer-v1.1.0.sh
-./clear-installer-v1.1.0.sh --target /path/to/your-project
+curl -fsSLO https://github.com/jketreno/clear/releases/download/v1.2.0/clear-installer-v1.2.0.sh
+chmod +x ./clear-installer-v1.2.0.sh
+./clear-installer-v1.2.0.sh --target /path/to/your-project
 ```
 <!-- RELEASE_VERSION_END -->
 
@@ -196,13 +196,13 @@ If you prefer to work from the git repo (for contributing or customizing CLEAR i
 ```bash
 git clone https://github.com/jketreno/clear
 cd clear
-./scripts/clear-installer.sh /path/to/your-project                 # install + setup wizard
-./scripts/clear-installer.sh --install-examples /path/to/examples  # extract domain-specific examples
-./scripts/clear-installer.sh --dry-run /path/to/project            # preview only
-./scripts/clear-installer.sh --target /path/to/project             # update an existing CLEAR install
+./scripts/clear-installer.sh /path/to/your-project                        # install + setup wizard
+./scripts/clear-installer.sh --install-examples /path/to/examples         # extract domain-specific examples
+./scripts/clear-installer.sh --dry-run /path/to/project                   # preview only
+./scripts/clear-installer.sh --update --target /path/to/project           # update an existing CLEAR install
 ```
 
-The unified installer auto-detects fresh install vs update based on `clear/autonomy.yml`.
+Use `--update` when re-running against a project that already has CLEAR installed.
 
 ---
 

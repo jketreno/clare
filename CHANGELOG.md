@@ -2,6 +2,23 @@
 
 All notable user-facing changes to this project are documented in this file.
 
+## v1.2.0 - 2026-05-05
+
+### Added
+
+- **`--update` flag for installer:** Updating an existing CLEAR installation now requires `--update` explicitly. Running without it on an already-installed project errors and tells you exactly what to run. Per-file prompting on update: each changed file shows a `[U]pdate / (d)iff / (s)kip / (a)bort` prompt.
+- **Codex support:** CLEAR installer now supports OpenAI Codex as an AI tool target alongside Claude, Cursor, and Copilot.
+- **Untracked file scanning in verify-ci.sh:** Architecture and autonomy checks now include untracked files by default. Use `--exclude-untracked` to limit scans to tracked files only.
+- **Pre-publish notes preview:** Release script now shows a preview of release notes before publishing and offers an edit step.
+
+### Changed
+
+- **verify-ci.sh hardening:** More robust YAML parsing for autonomy paths, Python interpreter auto-detection, clearer warnings when Node tooling is missing, and improved `--help` output with flag validation.
+- **Installer robustness:** Guards against missing TTY for interactive prompts, requires a git repository target, escapes extension names in sed selectors, and protects against `mktemp` failures.
+- **Release script hardening:** Rejects detached HEAD before publishing, tighter semantic version validation, documented exit code meanings and break-glass flag implications.
+- **Template and skill improvements:** Stronger autonomy guard parsing, clearer humans-only path selection guidance, expanded autonomy-bootstrap examples, and modernized MCP Python skill registration.
+- **Documentation accuracy:** Fixed `--update` flag omission in README and getting-started guide, added 60-second CLEAR overview, clarified template boundaries and breaking-change process.
+
 ## v1.1.0 - 2026-04-21
 
 ### Changed
