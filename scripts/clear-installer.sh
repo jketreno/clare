@@ -436,7 +436,7 @@ run_setup_flow() {
   local is_fresh_install="${3:-false}"
 
   local skills_dir prompts_dir extensions_file
-  local claude_commands_dir cursor_rules_dir vscode_prompts_dir
+  local claude_commands_dir cursor_rules_dir vscode_prompts_dir codex_skills_dir
   local installed_skills=""
 
   skills_dir="$setup_source_root/install/clear/templates/skills"
@@ -444,6 +444,7 @@ run_setup_flow() {
   claude_commands_dir="$setup_target/.claude/commands"
   cursor_rules_dir="$setup_target/.cursor/rules"
   vscode_prompts_dir="$setup_target/.vscode/prompts"
+  codex_skills_dir="$setup_target/.codex/skills"
   extensions_file="$setup_target/clear/extensions.yml"
 
   install_skills_from_arrays() {
@@ -453,7 +454,7 @@ run_setup_flow() {
 
     [[ ${#_files[@]} -gt 0 ]] || return 0
 
-    echo "$label (installed to .github/prompts/ and mirrored for Claude/Cursor/VS Code):"
+    echo "$label (installed to .github/prompts/ and mirrored for Claude/Cursor/VS Code/Codex):"
     echo ""
     for _i in "${!_files[@]}"; do
       printf "  %d. %s\n" "$((_i + 1))" "${_names[$_i]}"
@@ -499,12 +500,21 @@ run_setup_flow() {
       mkdir -p "$claude_commands_dir"
       mkdir -p "$cursor_rules_dir"
       mkdir -p "$vscode_prompts_dir"
+      if [[ -e "$setup_target/.codex" && ! -d "$setup_target/.codex" ]]; then
+        warn ".codex exists but is not a directory; skipping Codex skill mirrors"
+      else
+        mkdir -p "$codex_skills_dir"
+      fi
       for idx in "${to_install[@]}"; do
         local name="${_names[$idx]}"
         local src_file="${_files[$idx]}"
         cp "$src_file" "$prompts_dir/${name}.prompt.md"
         cp "$src_file" "$claude_commands_dir/${name}.md"
         cp "$src_file" "$vscode_prompts_dir/${name}.prompt.md"
+        if [[ -d "$codex_skills_dir" ]]; then
+          mkdir -p "$codex_skills_dir/$name"
+          cp "$src_file" "$codex_skills_dir/$name/SKILL.md"
+        fi
 
         {
           echo "---"
@@ -519,6 +529,9 @@ run_setup_flow() {
         success "Mirrored: .claude/commands/${name}.md"
         success "Mirrored: .cursor/rules/skill-${name}.mdc"
         success "Mirrored: .vscode/prompts/${name}.prompt.md"
+        if [[ -d "$codex_skills_dir" ]]; then
+          success "Mirrored: .codex/skills/${name}/SKILL.md"
+        fi
         installed_skills="$installed_skills $name"
       done
     fi
@@ -929,6 +942,7 @@ copy_dir_update "$SOURCE_ROOT/install/.cursor" "$TARGET_DIR/.cursor"
 copy_dir_update "$SOURCE_ROOT/install/.claude" "$TARGET_DIR/.claude"
 copy_dir_update "$SOURCE_ROOT/install/.vscode" "$TARGET_DIR/.vscode"
 copy_file_update "$SOURCE_ROOT/install/root/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
+copy_file_update "$SOURCE_ROOT/install/root/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_file_update "$SOURCE_ROOT/install/root/.cursorrules" "$TARGET_DIR/.cursorrules"
 copy_dir_update "$SOURCE_ROOT/install/clear/templates" "$TARGET_DIR/clear/templates"
 copy_dir_update "$SOURCE_ROOT/install/clear/examples" "$TARGET_DIR/clear/examples"
@@ -953,6 +967,19 @@ if [[ -d "$TARGET_DIR/.github/prompts" ]]; then
       prompt_update_file "$src_skill" "$prompt_file" || exit "$EXIT_ABORT"
     fi
   done < <(find "$TARGET_DIR/.github/prompts" -name "*.prompt.md" -type f | sort)
+fi
+
+if [[ -d "$TARGET_DIR/.codex/skills" ]]; then
+  while IFS= read -r skill_file; do
+    skill_name="$(basename "$(dirname "$skill_file")")"
+    src_skill=""
+    if [[ -f "$SOURCE_ROOT/install/clear/templates/skills/${skill_name}.md" ]]; then
+      src_skill="$SOURCE_ROOT/install/clear/templates/skills/${skill_name}.md"
+    fi
+    if [[ -n "$src_skill" ]]; then
+      prompt_update_file "$src_skill" "$skill_file" || exit "$EXIT_ABORT"
+    fi
+  done < <(find "$TARGET_DIR/.codex/skills" -path "*/SKILL.md" -type f | sort)
 fi
 
 if [[ -d "$TARGET_DIR/clear" ]]; then
