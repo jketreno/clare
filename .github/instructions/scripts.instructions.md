@@ -1,5 +1,5 @@
 ---
-applyTo: "scripts/**"
+applyTo: "scripts/**,clare/verify-*.sh"
 ---
 # Script Authoring Rules (CLARE — Constrained)
 

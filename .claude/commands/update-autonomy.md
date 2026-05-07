@@ -33,4 +33,4 @@ Suggest based on path characteristics:
 
 ## After Updating
 
-Remind the user: "Consider adding an architecture test that validates this boundary is respected. See `templates/architecture-tests/autonomy-guard.test.js` for an example."
+Remind the user: "Consider adding an architecture test that validates this boundary is respected. See `clare/templates/architecture-tests/autonomy-guard.test.js` for an example."

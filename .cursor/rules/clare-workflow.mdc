@@ -24,7 +24,7 @@ humans-only zones: [list paths, or "none"]
 verify-ci.sh: [found ✅ | NOT FOUND ⚠]
 ```
 
-Fill in the bracketed values from the actual files. Show this block **once per session**. If `clare/autonomy.yml` is missing, tell the user to run `./scripts/clare-installer.sh`.
+Fill in the bracketed values from the actual files. Show this block **once per session**. If `clare/autonomy.yml` is missing, tell the user to run the CLARE installer.
 
 ## Before Starting Any Task
 
@@ -77,10 +77,3 @@ When asked to implement something complex, present this before writing code:
 
 Proceed with implementation? [yes/no]
 ```
-
-## Release Tasks
-
-When a user asks to cut or publish a release:
-1. Use the repo-local release skill in `.github/skills/release.md`.
-2. After release publication, update only the README block between `<!-- RELEASE_VERSION_START -->` and `<!-- RELEASE_VERSION_END -->`.
-3. Ensure that tagged block contains the new tag link and exact installer filename (`clare-installer-vX.Y.Z.sh`).

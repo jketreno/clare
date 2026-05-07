@@ -30,7 +30,7 @@ test('supervised code does not depend on humans-only code', () => { ... });
 test('every event type has a registered Zod schema', () => { ... });
 ```
 
-See `install/clare/templates/architecture-tests/` for copy-paste starting points.
+See `clare/templates/architecture-tests/` for copy-paste starting points.
 
 ## ESLint Rules to Propose
 

@@ -52,20 +52,6 @@
       "detail": "Run CI checks with auto-fix for lint issues."
     },
     {
-      "label": "CLARE: Setup",
-      "type": "shell",
-      "command": "./scripts/clare-installer.sh --target .",
-      "group": "none",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "new"
-      },
-      "problemMatcher": [],
-      "detail": "Run unified CLARE installer/setup flow for current project."
-    },
-    {
       "label": "CLARE: Show Autonomy Boundaries",
       "type": "shell",
       "command": "cat clare/autonomy.yml",

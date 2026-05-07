@@ -25,13 +25,13 @@ A file is generated if:
 
 ## Regeneration Skills
 
-Check `install/clare/examples/skills/` for documented example regeneration workflows:
+Check `clare/examples/skills/` for documented example regeneration workflows:
 - `type-sync.md` — Keep Python ↔ TypeScript types in sync
 - `proto-visualization.md` — Update UI components from protobuf changes
 - `api-endpoint.md` — Generate an endpoint with rate limiting and tests
 - `reality-test.md` — Generate reality tests against an external service
 
-New skills belong in `install/clare/templates/skills/`.
+New skills belong in `clare/templates/skills/`.
 
 ## When Asked to Modify a Generated File
 
@@ -47,6 +47,6 @@ Respond with:
 ## Setting Up Regeneration
 
 When creating a new generated file type:
-1. Write a skill file in `install/clare/templates/skills/` documenting how to regenerate it
+1. Write a skill file in `clare/templates/skills/` documenting how to regenerate it
 2. Add the regeneration command to `clare/verify-local.sh` (under build checks)
 3. Add an architecture test that detects drift between source and generated output
