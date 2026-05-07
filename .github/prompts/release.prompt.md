@@ -13,10 +13,10 @@ Use this prompt when asked to cut/publish a release.
 1. Run the release-prep workflow from `.github/skills/release.md`.
 2. Audit `README.md` and all files in `docs/` against current script behavior by inspecting:
 	- `./scripts/release.sh --help`
-	- `./scripts/clear-installer.sh --help`
+	- `./scripts/clare-installer.sh --help`
 3. If docs mismatch implementation, abort and report a concise summary of incorrect files/commands.
 4. Update `CHANGELOG.md` with user-relevant changes since last release tag (`v*`) or from repo start if no tags exist.
-5. Update release collateral (`CHANGELOG.md`, `README.md`, and corrected docs) and run `./clear/verify-ci.sh`.
+5. Update release collateral (`CHANGELOG.md`, `README.md`, and corrected docs) and run `./clare/verify-ci.sh`.
 6. Stage, commit, and push collateral updates.
 7. Hand off to user to publish manually:
 

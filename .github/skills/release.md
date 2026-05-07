@@ -4,7 +4,7 @@ description: "Prepare release collateral by auditing docs, updating CHANGELOG, a
 mode: agent
 ---
 
-# CLEAR Repo Skill: Prepare a Release
+# CLARE Repo Skill: Prepare a Release
 
 Use this skill when a user asks to prepare or cut a release for this repository.
 This skill does not publish the release directly.
@@ -13,7 +13,7 @@ This skill does not publish the release directly.
 
 1. Git tree must be clean before starting.
 2. Release must run from `main`.
-3. `./clear/verify-ci.sh` must pass before handoff.
+3. `./clare/verify-ci.sh` must pass before handoff.
 4. Before release prep, audit docs for command/flag accuracy by inspecting scripts.
 5. If docs and implementation disagree, abort prep and report a mismatch summary.
 6. Update release collateral, then stage, commit, and push before handoff.
@@ -23,7 +23,7 @@ This skill does not publish the release directly.
    - `<!-- RELEASE_VERSION_END -->`
 9. The updated block must include:
    - the new version label `vX.Y.Z`
-   - a link to `https://github.com/jketreno/clear/releases/tag/vX.Y.Z`
+   - a link to `https://github.com/jketreno/clare/releases/tag/vX.Y.Z`
    - install commands with exact installer filename for that version
 
 ## Phase 1: Preflight + Accuracy Audit
@@ -33,14 +33,14 @@ Run:
 ```bash
 git status --porcelain
 git branch --show-current
-./clear/verify-ci.sh
+./clare/verify-ci.sh
 ```
 
 Inspect script capabilities and compare with README/docs references:
 
 ```bash
 ./scripts/release.sh --help
-./scripts/clear-installer.sh --help
+./scripts/clare-installer.sh --help
 ```
 
 Verify README and all files under `docs/` only reference supported commands and flags.
@@ -106,12 +106,12 @@ Replace only the content between the tag markers with:
 
 ~~~markdown
 <!-- RELEASE_VERSION_START -->
-**Latest release: [vX.Y.Z](https://github.com/jketreno/clear/releases/tag/vX.Y.Z)**
+**Latest release: [vX.Y.Z](https://github.com/jketreno/clare/releases/tag/vX.Y.Z)**
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clear/releases/download/vX.Y.Z/clear-installer-vX.Y.Z.sh
-chmod +x ./clear-installer-vX.Y.Z.sh
-./clear-installer-vX.Y.Z.sh --target /path/to/your-project
+curl -fsSLO https://github.com/jketreno/clare/releases/download/vX.Y.Z/clare-installer-vX.Y.Z.sh
+chmod +x ./clare-installer-vX.Y.Z.sh
+./clare-installer-vX.Y.Z.sh --target /path/to/your-project
 ```
 <!-- RELEASE_VERSION_END -->
 ~~~

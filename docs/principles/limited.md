@@ -61,7 +61,7 @@ AI must not generate code in this path. When instructed to do so, it refuses and
 ## The autonomy.yml Format
 
 ```yaml
-# clear/autonomy.yml
+# clare/autonomy.yml
 
 project: "my-project"
 
@@ -95,18 +95,18 @@ modules:
 
 ### AI enforcement (immediate)
 
-The AI tools in this project are configured to check `clear/autonomy.yml` before every file change. This is the primary enforcement mechanism.
+The AI tools in this project are configured to check `clare/autonomy.yml` before every file change. This is the primary enforcement mechanism.
 
 - **Copilot:** `.github/copilot-instructions.md` instructs it to check autonomy.yml
 - **Claude:** `CLAUDE.md` and `.claude/commands/check-autonomy.md` provide explicit instructions
-- **Cursor:** `.cursor/rules/clear-limited.mdc` with `alwaysApply: true`
+- **Cursor:** `.cursor/rules/clare-limited.mdc` with `alwaysApply: true`
 
 ### Architecture test enforcement (CI)
 
-The autonomy guard test in `clear/templates/architecture-tests/autonomy-guard.test.js` reads `autonomy.yml` and checks staged files against it:
+The autonomy guard test in `clare/templates/architecture-tests/autonomy-guard.test.js` reads `autonomy.yml` and checks staged files against it:
 
 ```bash
-# Add to clear/verify-local.sh:
+# Add to clare/verify-local.sh:
 run_check "Autonomy guard" "cd '$PROJECT_ROOT' && npx jest tests/architecture/autonomy-guard.test.js 2>&1"
 ```
 
@@ -142,8 +142,8 @@ For self-documenting boundaries, add comments to key files:
 ```typescript
 // src/domain/user.ts
 // autonomy: humans-only
-// This file is in the core domain model. See clear/autonomy.yml.
-// Do not modify with AI tools. Update clear/autonomy.yml if this boundary changes.
+// This file is in the core domain model. See clare/autonomy.yml.
+// Do not modify with AI tools. Update clare/autonomy.yml if this boundary changes.
 ```
 
 ```python

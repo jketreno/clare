@@ -191,7 +191,7 @@ A better metric: **regeneration stability**. After regenerating an implementatio
 
 **Week 2:** Add one property-based test to your most critical module.
 
-**Week 3:** Add one architecture test from `clear/templates/architecture-tests/` to `verify-local.sh`.
+**Week 3:** Add one architecture test from `clare/templates/architecture-tests/` to `verify-local.sh`.
 
 **Week 4:** Extract invariants from your last 5 code review comments. Write tests for them.
 

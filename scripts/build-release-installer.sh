@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# CLEAR build-release-installer.sh — Build self-extracting installer artifacts
+# CLARE build-release-installer.sh — Build self-extracting installer artifacts
 # =============================================================================
 # Usage:
 #   ./scripts/build-release-installer.sh --version 1.2.3
@@ -75,7 +75,7 @@ cleanup() {
 trap cleanup EXIT
 
 STAGE_DIR="$WORK_DIR/stage"
-PAYLOAD_DIR="$STAGE_DIR/clear-dist"
+PAYLOAD_DIR="$STAGE_DIR/clare-dist"
 mkdir -p "$PAYLOAD_DIR"
 
 rl_info "Staging release payload"
@@ -85,10 +85,10 @@ rl_info "Capturing source checksums"
 (
   cd "$PROJECT_ROOT"
   sha256sum \
-    scripts/clear-installer.sh \
-    clear/principles.md \
-    clear/extensions.yml \
-    clear/verify-ci.sh \
+    scripts/clare-installer.sh \
+    clare/principles.md \
+    clare/extensions.yml \
+    clare/verify-ci.sh \
     README.md \
     CHANGELOG.md \
     LICENSE \
@@ -96,11 +96,11 @@ rl_info "Capturing source checksums"
 )
 
 mkdir -p "$PAYLOAD_DIR/scripts"
-cp "$PROJECT_ROOT/scripts/clear-installer.sh" "$PAYLOAD_DIR/scripts/clear-installer.sh"
-mkdir -p "$PAYLOAD_DIR/clear"
-cp "$PROJECT_ROOT/clear/principles.md" "$PAYLOAD_DIR/clear/principles.md"
-cp "$PROJECT_ROOT/clear/extensions.yml" "$PAYLOAD_DIR/clear/extensions.yml"
-cp "$PROJECT_ROOT/clear/verify-ci.sh" "$PAYLOAD_DIR/clear/verify-ci.sh"
+cp "$PROJECT_ROOT/scripts/clare-installer.sh" "$PAYLOAD_DIR/scripts/clare-installer.sh"
+mkdir -p "$PAYLOAD_DIR/clare"
+cp "$PROJECT_ROOT/clare/principles.md" "$PAYLOAD_DIR/clare/principles.md"
+cp "$PROJECT_ROOT/clare/extensions.yml" "$PAYLOAD_DIR/clare/extensions.yml"
+cp "$PROJECT_ROOT/clare/verify-ci.sh" "$PAYLOAD_DIR/clare/verify-ci.sh"
 cp -R "$PROJECT_ROOT/install" "$PAYLOAD_DIR/install"
 cp -R "$PROJECT_ROOT/docs" "$PAYLOAD_DIR/docs"
 cp "$PROJECT_ROOT/README.md" "$PAYLOAD_DIR/README.md"
@@ -112,21 +112,21 @@ cp "$SOURCE_CHECKSUMS_PATH" "$PAYLOAD_DIR/source-checksums.sha256"
 PAYLOAD_TARBALL="$WORK_DIR/payload.tar.gz"
 (
   cd "$STAGE_DIR"
-  tar -czf "$PAYLOAD_TARBALL" clear-dist
+  tar -czf "$PAYLOAD_TARBALL" clare-dist
 )
 
-INSTALLER_NAME="clear-installer-v$VERSION.sh"
-CHECKSUM_NAME="clear-installer-v$VERSION.sha256"
-SIGNATURE_NAME="clear-installer-v$VERSION.sha256.asc"
+INSTALLER_NAME="clare-installer-v$VERSION.sh"
+CHECKSUM_NAME="clare-installer-v$VERSION.sha256"
+SIGNATURE_NAME="clare-installer-v$VERSION.sha256.asc"
 
 mkdir -p "$OUTPUT_DIR"
 INSTALLER_PATH="$OUTPUT_DIR/$INSTALLER_NAME"
 CHECKSUM_PATH="$OUTPUT_DIR/$CHECKSUM_NAME"
 SIGNATURE_PATH="$OUTPUT_DIR/$SIGNATURE_NAME"
 
-cp "$PROJECT_ROOT/scripts/clear-installer.sh" "$INSTALLER_PATH"
+cp "$PROJECT_ROOT/scripts/clare-installer.sh" "$INSTALLER_PATH"
 echo "" >>"$INSTALLER_PATH"
-echo "__CLEAR_PAYLOAD_BELOW__" >>"$INSTALLER_PATH"
+echo "__CLARE_PAYLOAD_BELOW__" >>"$INSTALLER_PATH"
 
 cat "$PAYLOAD_TARBALL" >>"$INSTALLER_PATH"
 chmod +x "$INSTALLER_PATH"

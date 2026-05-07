@@ -1,6 +1,6 @@
-# CLEAR Release Runbook
+# CLARE Release Runbook
 
-This runbook describes the standard release flow for CLEAR.
+This runbook describes the standard release flow for CLARE.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ Break-glass only:
 ## What the release command does
 
 1. Verifies preflight conditions (branch, clean tree, tools, auth)
-2. Runs `./clear/verify-ci.sh` unless `--skip-verify` is explicitly used
+2. Runs `./clare/verify-ci.sh` unless `--skip-verify` is explicitly used
 3. Builds installer + checksum + detached signature artifacts
 4. Creates and pushes `vX.Y.Z` tag
 5. Creates GitHub release and uploads artifacts
@@ -45,14 +45,14 @@ Break-glass only:
 
 Each release publishes:
 
-- `clear-installer-vX.Y.Z.sh`
-- `clear-installer-vX.Y.Z.sha256`
-- `clear-installer-vX.Y.Z.sha256.asc`
+- `clare-installer-vX.Y.Z.sh`
+- `clare-installer-vX.Y.Z.sha256`
+- `clare-installer-vX.Y.Z.sha256.asc`
 
 Repository trust material:
 
-- `docs/keys/clear-release-signing-public.asc`
-- `docs/keys/clear-release-signing-fingerprint.txt`
+- `docs/keys/clare-release-signing-public.asc`
+- `docs/keys/clare-release-signing-fingerprint.txt`
 
 Published signing fingerprint:
 
@@ -65,14 +65,14 @@ Release notes should repeat the same fingerprint to support out-of-band trust ve
 Download artifacts and verification key first:
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clear/releases/download/vX.Y.Z/clear-installer-vX.Y.Z.sh
-curl -fsSLO https://github.com/jketreno/clear/releases/download/vX.Y.Z/clear-installer-vX.Y.Z.sha256
-curl -fsSLO https://github.com/jketreno/clear/releases/download/vX.Y.Z/clear-installer-vX.Y.Z.sha256.asc
-curl -fsSL -o clear-release-signing-public.asc \
-	https://raw.githubusercontent.com/jketreno/clear/vX.Y.Z/docs/keys/clear-release-signing-public.asc
-gpg --import clear-release-signing-public.asc
-gpg --verify clear-installer-vX.Y.Z.sha256.asc clear-installer-vX.Y.Z.sha256
-sha256sum -c clear-installer-vX.Y.Z.sha256
+curl -fsSLO https://github.com/jketreno/clare/releases/download/vX.Y.Z/clare-installer-vX.Y.Z.sh
+curl -fsSLO https://github.com/jketreno/clare/releases/download/vX.Y.Z/clare-installer-vX.Y.Z.sha256
+curl -fsSLO https://github.com/jketreno/clare/releases/download/vX.Y.Z/clare-installer-vX.Y.Z.sha256.asc
+curl -fsSL -o clare-release-signing-public.asc \
+	https://raw.githubusercontent.com/jketreno/clare/vX.Y.Z/docs/keys/clare-release-signing-public.asc
+gpg --import clare-release-signing-public.asc
+gpg --verify clare-installer-vX.Y.Z.sha256.asc clare-installer-vX.Y.Z.sha256
+sha256sum -c clare-installer-vX.Y.Z.sha256
 ```
 
 Do not run the installer unless verification succeeds.
@@ -80,13 +80,13 @@ Do not run the installer unless verification succeeds.
 Install or update from one entrypoint:
 
 ```bash
-bash clear-installer-vX.Y.Z.sh --target /path/to/repo
+bash clare-installer-vX.Y.Z.sh --target /path/to/repo
 ```
 
 Extract payload for inspection:
 
 ```bash
-bash clear-installer-vX.Y.Z.sh --extract /tmp/clear-extract
+bash clare-installer-vX.Y.Z.sh --extract /tmp/clare-extract
 ```
 
 Default installer execution uses ephemeral temp directories and removes extraction artifacts automatically.

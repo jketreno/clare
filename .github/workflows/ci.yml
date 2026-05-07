@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   verify:
-    name: CLEAR Verification
+    name: CLARE Verification
     runs-on: ubuntu-latest
 
     steps:
@@ -25,11 +25,11 @@ jobs:
 
       - name: Make scripts executable
         run: |
-          chmod +x clear/verify-ci.sh clear/verify-local.sh
+          chmod +x clare/verify-ci.sh clare/verify-local.sh
           chmod +x scripts/*.sh
 
-      - name: CLEAR — Verify CI
-        run: ./clear/verify-ci.sh
+      - name: CLARE — Verify CI
+        run: ./clare/verify-ci.sh
 
       - name: Shellcheck (scripts quality)
-        run: shellcheck --severity=error scripts/*.sh clear/verify-ci.sh clear/verify-local.sh
+        run: shellcheck --severity=error scripts/*.sh clare/verify-ci.sh clare/verify-local.sh

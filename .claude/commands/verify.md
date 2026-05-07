@@ -1,13 +1,13 @@
-# /project:verify — Run CLEAR verification
+# /project:verify — Run CLARE verification
 
-Runs `./clear/verify-ci.sh` and reports a structured summary of results.
+Runs `./clare/verify-ci.sh` and reports a structured summary of results.
 
 ## Instructions
 
 Execute the following and report results clearly:
 
 ```bash
-./clear/verify-ci.sh 2>&1
+./clare/verify-ci.sh 2>&1
 ```
 
 After running:

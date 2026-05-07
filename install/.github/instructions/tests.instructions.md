@@ -1,9 +1,9 @@
 ---
 applyTo: "**/*.test.ts,**/*.test.js,**/*.spec.ts,**/*.spec.js,tests/**,test/**"
 ---
-# Testing Standards (CLEAR — Assertive)
+# Testing Standards (CLARE — Assertive)
 
-CLEAR requires **constraint tests**, not confirmation tests. Every test file must enforce invariants — things that must always be true — not just describe what the current implementation does.
+CLARE requires **constraint tests**, not confirmation tests. Every test file must enforce invariants — things that must always be true — not just describe what the current implementation does.
 
 ## The Core Distinction
 

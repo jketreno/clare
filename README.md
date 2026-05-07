@@ -1,10 +1,10 @@
-![CLEAR](assets/clear.png)
+![CLARE](assets/clare.png)
 
-[![CI](https://github.com/jketreno/clear/actions/workflows/ci.yml/badge.svg)](https://github.com/jketreno/clear/actions/workflows/ci.yml)
+[![CI](https://github.com/jketreno/clare/actions/workflows/ci.yml/badge.svg)](https://github.com/jketreno/clare/actions/workflows/ci.yml)
 
-# CLEAR — AI-Assisted Development Framework
+# CLARE — AI-Assisted Development Framework
 
-> **C**onstrained · **L**imited · **E**phemeral · **A**ssertive · **R**eality-Aligned
+> **C**onstrained · **L**imited · **A**ssertive · **R**eality-Aligned · **E**phemeral
 
 The counterintuitive part of AI-assisted development:
 
@@ -16,19 +16,19 @@ The counterintuitive part of AI-assisted development:
 
 Your architecture rules live in code reviews and tribal knowledge. AI can't read any of that — so it generates code that works but violates your patterns.
 
-CLEAR fixes this: define your rules as automated checks, tell the AI to run them before finishing, and let it self-correct. The AI generates code, runs `verify-ci.sh`, sees the failure, fixes it, and reports done — you never see the violation.
+CLARE fixes this: define your rules as automated checks, tell the AI to run them before finishing, and let it self-correct. The AI generates code, runs `verify-ci.sh`, sees the failure, fixes it, and reports done — you never see the violation.
 
 Works with GitHub Copilot, Claude Code, Cursor, and MCP-compatible agent frameworks.
 
-Want to know the thought process that led to CLEAR's design? Read the [origin story](ORIGIN.md).
+Want to know the thought process that led to CLARE's design? Read the [origin story](ORIGIN.md).
 
 ---
 
-## CLEAR in 60 seconds
+## CLARE in 60 seconds
 
-1. Install CLEAR into your repo with one script.
-2. AI tools read CLEAR rules (`CLAUDE.md`, `.github/*`, `.cursor/rules/*`) automatically, honoring AI editing limits.
-3. Before claiming work is done, AI must run `./clear/verify-ci.sh`.
+1. Install CLARE into your repo with one script.
+2. AI tools read CLARE rules (`CLAUDE.md`, `.github/*`, `.cursor/rules/*`) automatically, honoring AI editing limits.
+3. Before claiming work is done, AI must run `./clare/verify-ci.sh`.
 4. If checks fail, AI fixes and reruns until all pass.
 5. You review constraints and architecture, not repetitive implementation mistakes.
 
@@ -36,21 +36,21 @@ Want to know the thought process that led to CLEAR's design? Read the [origin st
 
 ## Quick Start
 
-### 1 — Install CLEAR into your project
+### 1 — Install CLARE into your project
 
 <!-- RELEASE_VERSION_START -->
-**Latest release: [v1.2.0](https://github.com/jketreno/clear/releases/tag/v1.2.0)**
+**Latest release: [v1.2.0](https://github.com/jketreno/clare/releases/tag/v1.2.0)**
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clear/releases/download/v1.2.0/clear-installer-v1.2.0.sh
-chmod +x ./clear-installer-v1.2.0.sh
-./clear-installer-v1.2.0.sh --target /path/to/your-project
+curl -fsSLO https://github.com/jketreno/clare/releases/download/v1.2.0/clare-installer-v1.2.0.sh
+chmod +x ./clare-installer-v1.2.0.sh
+./clare-installer-v1.2.0.sh --target /path/to/your-project
 ```
 <!-- RELEASE_VERSION_END -->
 
-This copies CLEAR's scripts, AI tool configs, and templates into your project. If CLEAR is already installed, the installer updates CLEAR-owned files and preserves your customizations.
+This copies CLARE's scripts, AI tool configs, and templates into your project. If CLARE is already installed, the installer updates CLARE-owned files and preserves your customizations.
 
-It then runs the setup wizard, which uses a hybrid flow: it can install a safe starter `clear/autonomy.yml`
+It then runs the setup wizard, which uses a hybrid flow: it can install a safe starter `clare/autonomy.yml`
 and guide you to run the `autonomy-bootstrap` skill from your AI assistant
 (Cursor, Copilot Chat, Claude, etc.) to generate project-specific boundaries and sources of truth.
 Manual prompts for boundaries/concepts are still available as a fallback.
@@ -58,26 +58,26 @@ Manual prompts for boundaries/concepts are still available as a fallback.
 ### 2 — See it work
 
 ```bash
-./clear/verify-ci.sh
+./clare/verify-ci.sh
 ```
 
 You should see all checks pass. This is the script your AI tool runs before reporting any work as complete. Right now it checks autonomy boundaries and shell compliance. Your project-specific checks come next.
 
 ### 3 — Confirm your autonomy boundaries
 
-Open `clear/autonomy.yml` and review module levels (`full-autonomy`, `supervised`, `humans-only`) for your project. Keep high-risk areas conservative first, then relax specific low-risk paths after review.
+Open `clare/autonomy.yml` and review module levels (`full-autonomy`, `supervised`, `humans-only`) for your project. Keep high-risk areas conservative first, then relax specific low-risk paths after review.
 
 ### 4 — Add your first constraint
 
-Open your AI tool (Copilot, Claude Code, Cursor) in your project. It automatically reads the CLEAR config files installed in step 1. Paste this:
+Open your AI tool (Copilot, Claude Code, Cursor) in your project. It automatically reads the CLARE config files installed in step 1. Paste this:
 
 ```
 Analyze this codebase and identify the build tools, linters, test frameworks,
 and any existing architecture tests. For each tool found, show me the exact
-run_check() line to add to clear/verify-local.sh. Wait for my approval.
+run_check() line to add to clare/verify-local.sh. Wait for my approval.
 ```
 
-Review what the AI proposes, approve it, then run `./clear/verify-ci.sh` again — your checks are now enforced.
+Review what the AI proposes, approve it, then run `./clare/verify-ci.sh` again — your checks are now enforced.
 
 ### 5 — Turn a code review comment into an enforced rule
 
@@ -88,7 +88,7 @@ I want to turn this code review rule into an enforced constraint:
 "[paste your most common review comment here]"
 
 What type of check best enforces this — linter rule, architecture test, or build flag?
-Show me the code for the check and the run_check() line for clear/verify-local.sh.
+Show me the code for the check and the run_check() line for clare/verify-local.sh.
 Wait for my approval.
 ```
 
@@ -104,15 +104,15 @@ flowchart TD
 
     subgraph AI["AI Tool (Copilot · Claude · Cursor)"]
         direction TB
-        CFG["Reads CLEAR config at session start<br/>.github/copilot-instructions.md<br/>CLAUDE.md · .cursor/rules/"]
-        AUT["Checks clear/autonomy.yml<br/>before touching any file"]
+        CFG["Reads CLARE config at session start<br/>.github/copilot-instructions.md<br/>CLAUDE.md · .cursor/rules/"]
+        AUT["Checks clare/autonomy.yml<br/>before touching any file"]
         GEN["Generates / modifies code"]
         CFG --> AUT --> GEN
     end
 
     GEN --> VCI
 
-    subgraph VCI["clear/verify-ci.sh"]
+    subgraph VCI["clare/verify-ci.sh"]
         direction LR
         B[Build] --> L[Lint] --> T[Tests] --> A["Architecture<br/>Tests"] --> G["Autonomy<br/>Guard"]
     end
@@ -124,7 +124,7 @@ flowchart TD
 
 The core rule every AI config enforces:
 
-> **Run `./clear/verify-ci.sh` before reporting work as complete. If it fails, fix the issues and run again. Never say "done" if it fails.**
+> **Run `./clare/verify-ci.sh` before reporting work as complete. If it fails, fix the issues and run again. Never say "done" if it fails.**
 
 ---
 
@@ -134,9 +134,9 @@ The core rule every AI config enforces:
 |---|-----------|---------------|
 | **C** | **Constrained** | Architecture rules are enforced by scripts and tests, not code review |
 | **L** | **Limited** | Modules are tagged `full-autonomy`, `supervised`, or `humans-only` |
-| **E** | **Ephemeral** | Generated code is regenerated from source, never hand-edited |
 | **A** | **Assertive** | Tests enforce what must always be true, not just confirm the current implementation |
 | **R** | **Reality-Aligned** | Domain models derive from a declared single source of truth |
+| **E** | **Ephemeral** | Generated code is regenerated from source, never hand-edited |
 
 ---
 
@@ -145,8 +145,8 @@ The core rule every AI config enforces:
 The installer copies these into your project:
 
 ```
-clear/
-  verify-ci.sh          — The enforcement script (CLEAR-owned, updated automatically)
+clare/
+  verify-ci.sh          — The enforcement script (CLARE-owned, updated automatically)
   verify-local.sh       — Your project-specific checks (never overwritten)
   autonomy.yml          — Module boundaries (full-autonomy / supervised / humans-only)
   extensions.yml        — Optional tool extensions (e.g., Lizard complexity analysis)
@@ -171,38 +171,38 @@ Domain-specific examples (API endpoint skills, type-sync tests, etc.) are availa
 
 ```bash
 # Extract examples on demand (outside onboarding):
-./clear-installer-vX.Y.Z.sh --install-examples /path/to/examples
+./clare-installer-vX.Y.Z.sh --install-examples /path/to/examples
 ```
 
 ---
 
-## Updating CLEAR
+## Updating CLARE
 
 When a new version is released, run the installer again against the same project:
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clear/releases/download/vX.Y.Z/clear-installer-vX.Y.Z.sh
-bash clear-installer-vX.Y.Z.sh --target /path/to/your-project
+curl -fsSLO https://github.com/jketreno/clare/releases/download/vX.Y.Z/clare-installer-vX.Y.Z.sh
+bash clare-installer-vX.Y.Z.sh --target /path/to/your-project
 ```
 
-CLEAR-owned files (`verify-ci.sh`, AI configs, `principles.md`) are updated. Your files (`verify-local.sh`, `autonomy.yml`, `extensions.yml`) are never overwritten.
+CLARE-owned files (`verify-ci.sh`, AI configs, `principles.md`) are updated. Your files (`verify-local.sh`, `autonomy.yml`, `extensions.yml`) are never overwritten.
 
 ---
 
 ## Alternative: Bootstrap from Source
 
-If you prefer to work from the git repo (for contributing or customizing CLEAR itself):
+If you prefer to work from the git repo (for contributing or customizing CLARE itself):
 
 ```bash
-git clone https://github.com/jketreno/clear
-cd clear
-./scripts/clear-installer.sh /path/to/your-project                        # install + setup wizard
-./scripts/clear-installer.sh --install-examples /path/to/examples         # extract domain-specific examples
-./scripts/clear-installer.sh --dry-run /path/to/project                   # preview only
-./scripts/clear-installer.sh --update --target /path/to/project           # update an existing CLEAR install
+git clone https://github.com/jketreno/clare
+cd clare
+./scripts/clare-installer.sh /path/to/your-project                        # install + setup wizard
+./scripts/clare-installer.sh --install-examples /path/to/examples         # extract domain-specific examples
+./scripts/clare-installer.sh --dry-run /path/to/project                   # preview only
+./scripts/clare-installer.sh --update --target /path/to/project           # update an existing CLARE install
 ```
 
-Use `--update` when re-running against a project that already has CLEAR installed.
+Use `--update` when re-running against a project that already has CLARE installed.
 
 ---
 

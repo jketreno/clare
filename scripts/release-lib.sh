@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# CLEAR release-lib.sh — Shared helpers for release automation scripts
+# CLARE release-lib.sh — Shared helpers for release automation scripts
 # =============================================================================
 
 set -euo pipefail

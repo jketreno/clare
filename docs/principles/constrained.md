@@ -17,7 +17,7 @@ The solution: **make the rule fail the build**.
 
 ## The Mechanism: verify-ci.sh
 
-Everything flows through `clear/verify-ci.sh`. AI tools are instructed to run it after every code change. If it fails, they fix the issue and run again. The work is not complete until it passes.
+Everything flows through `clare/verify-ci.sh`. AI tools are instructed to run it after every code change. If it fails, they fix the issue and run again. The work is not complete until it passes.
 
 This creates a local feedback loop that catches issues in seconds rather than waiting for CI/CD (minutes) or code review (hours/days).
 
@@ -65,7 +65,7 @@ export default [
 ];
 ```
 
-See `clear/templates/linting/` for more complete ESLint configurations.
+See `clare/templates/linting/` for more complete ESLint configurations.
 
 ### Level 2: Type System
 
@@ -126,7 +126,7 @@ test('utility code does not import from business logic', () => {
 });
 ```
 
-See `clear/templates/architecture-tests/` for generic tests and `clear/examples/architecture-tests/` for domain-specific examples.
+See `clare/templates/architecture-tests/` for generic tests and `clare/examples/architecture-tests/` for domain-specific examples.
 
 ---
 
@@ -155,15 +155,15 @@ Use this quick decision order when adding a new rule:
 
 **Step 3:** Write the enforcement
 
-**Step 4:** Add it to `clear/verify-local.sh`:
+**Step 4:** Add it to `clare/verify-local.sh`:
 ```bash
 run_check "Request ID enforcement" "cd '$PROJECT_ROOT' && npx jest tests/architecture/request-id.test.js 2>&1"
 ```
 
 **Step 5:** Tell your AI:
 ```
-This rule is now in clear/verify-local.sh. It will fail if you violate it.
-You must run ./clear/verify-ci.sh and pass it before marking work complete.
+This rule is now in clare/verify-local.sh. It will fail if you violate it.
+You must run ./clare/verify-ci.sh and pass it before marking work complete.
 ```
 
 The AI will now catch and fix its own violations before you see the code.
@@ -232,8 +232,8 @@ The powerful move: **use AI to write the constraints**. Then you review and appr
  2. Input validation with a schema
  3. Authentication required
  
- Then add it to clear/verify-local.sh.
- Use clear/examples/architecture-tests/api-rules.test.js as a starting point."
+ Then add it to clare/verify-local.sh.
+ Use clare/examples/architecture-tests/api-rules.test.js as a starting point."
 ```
 
 AI generates the constraint. You review it (10 minutes). Now the constraint enforces itself on all future AI-generated code.

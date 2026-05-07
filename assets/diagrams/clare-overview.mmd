@@ -1,0 +1,21 @@
+flowchart TD
+    DEV([Developer]) -->|"request"| AI
+
+    subgraph AI["AI Tool (Copilot, Claude, Cursor)"]
+        direction TB
+        CFG["Reads CLARE config at session start<br/>.github/copilot-instructions.md<br/>CLAUDE.md and .cursor/rules/"]
+        AUT["Checks clare/autonomy.yml<br/>before touching any file"]
+        GEN["Generates or modifies code"]
+        CFG --> AUT --> GEN
+    end
+
+    GEN --> VCI
+
+    subgraph VCI["clare/verify-ci.sh"]
+        direction LR
+        B[Build] --> L[Lint] --> T[Tests] --> A["Architecture<br/>Tests"] --> G["Autonomy<br/>Guard"]
+    end
+
+    VCI -->|"any check fails"| FIX["AI reads errors<br/>and self-corrects"]
+    FIX --> GEN
+    VCI -->|"all checks pass"| DONE["Done: AI reports complete<br/>Developer commits"]

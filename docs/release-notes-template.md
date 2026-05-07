@@ -1,10 +1,10 @@
-# CLEAR v{{VERSION}}
+# CLARE v{{VERSION}}
 
 ## Release Artifacts
 
-- clear-installer-v{{VERSION}}.sh
-- clear-installer-v{{VERSION}}.sha256
-- clear-installer-v{{VERSION}}.sha256.asc
+- clare-installer-v{{VERSION}}.sh
+- clare-installer-v{{VERSION}}.sha256
+- clare-installer-v{{VERSION}}.sha256.asc
 
 ## Verify Before Running
 

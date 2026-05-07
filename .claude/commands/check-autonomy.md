@@ -1,6 +1,6 @@
 # /project:check-autonomy — Check the autonomy level for a file path
 
-Given a file path, look up its autonomy level in `clear/autonomy.yml` and explain what it means for AI-generated changes.
+Given a file path, look up its autonomy level in `clare/autonomy.yml` and explain what it means for AI-generated changes.
 
 ## Usage
 
@@ -10,7 +10,7 @@ Example: `/project:check-autonomy src/payment/processor.ts`
 
 ## Instructions
 
-1. Read `clear/autonomy.yml`
+1. Read `clare/autonomy.yml`
 2. Find the most specific matching path for the given argument (longest prefix match wins)
 3. Report the level, reason, and what action is appropriate
 
@@ -34,6 +34,6 @@ Reason: [reason from autonomy.yml]
 
 **full-autonomy**: AI can proceed normally. No special restrictions or reminders needed.
 
-**supervised**: AI can generate code but must add: "⚠ Human review required — this path is marked `supervised` in `clear/autonomy.yml`." at the end of the response.
+**supervised**: AI can generate code but must add: "⚠ Human review required — this path is marked `supervised` in `clare/autonomy.yml`." at the end of the response.
 
-**humans-only**: AI must NOT generate code. Respond with: "This path is marked `humans-only` in `clear/autonomy.yml`. I won't generate code here. Please make this change yourself, or update the autonomy level if that boundary no longer applies."
+**humans-only**: AI must NOT generate code. Respond with: "This path is marked `humans-only` in `clare/autonomy.yml`. I won't generate code here. Please make this change yourself, or update the autonomy level if that boundary no longer applies."

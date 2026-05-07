@@ -1,10 +1,10 @@
 # /project:update-autonomy — Guide autonomy boundary update
 
-Guides the user through updating `clear/autonomy.yml` to add, modify, or remove an autonomy boundary.
+Guides the user through updating `clare/autonomy.yml` to add, modify, or remove an autonomy boundary.
 
 ## Instructions
 
-1. First, read and display the current contents of `clear/autonomy.yml`
+1. First, read and display the current contents of `clare/autonomy.yml`
 2. Ask the user:
    - **What path** are they adding/modifying? (e.g., `src/billing`)
    - **What level**? (`full-autonomy` / `supervised` / `humans-only`)
@@ -14,15 +14,15 @@ Guides the user through updating `clear/autonomy.yml` to add, modify, or remove 
 3. Show the proposed YAML change before applying it:
 
 ```yaml
-# Proposed addition to clear/autonomy.yml modules section:
+# Proposed addition to clare/autonomy.yml modules section:
   - path: "[path]"
     level: [level]
     reason: "[reason]"
 ```
 
-4. Ask for confirmation: "Apply this change to `clear/autonomy.yml`?"
-5. On confirmation, edit `clear/autonomy.yml` to add/modify/remove the entry
-6. Confirm: "Updated `clear/autonomy.yml`. The `[path]` path is now `[level]`."
+4. Ask for confirmation: "Apply this change to `clare/autonomy.yml`?"
+5. On confirmation, edit `clare/autonomy.yml` to add/modify/remove the entry
+6. Confirm: "Updated `clare/autonomy.yml`. The `[path]` path is now `[level]`."
 
 ## Guidance for Choosing Levels
 

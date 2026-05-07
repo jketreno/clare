@@ -43,8 +43,8 @@ jobs:
         if: ${{ inputs.no_sign != true }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
-          gpg_private_key: ${{ secrets.CLEAR_RELEASE_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.CLEAR_RELEASE_GPG_PASSPHRASE }}
+          gpg_private_key: ${{ secrets.CLARE_RELEASE_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.CLARE_RELEASE_GPG_PASSPHRASE }}
 
       - name: Run release script
         env:

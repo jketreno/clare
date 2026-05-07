@@ -1,12 +1,12 @@
-# CLEAR Framework Rules
+# CLARE Framework Rules
 
-This project uses the CLEAR framework. Detailed rules are in `.cursor/rules/`.
+This project uses the CLARE framework. Detailed rules are in `.cursor/rules/`.
 
 ## Core Rule
-Always run `./clear/verify-ci.sh` before marking work complete.
+Always run `./clare/verify-ci.sh` before marking work complete.
 
 ## Before Any File Change
-Check `clear/autonomy.yml` for the file path:
+Check `clare/autonomy.yml` for the file path:
 - `full-autonomy` → proceed
 - `supervised` → generate + add "⚠ Human review required"
 - `humans-only` → STOP, notify user, do not generate code
@@ -14,11 +14,11 @@ Check `clear/autonomy.yml` for the file path:
 ## Five Principles
 - [C] Constrained: rules exist in tests/linters, not comments
 - [L] Limited: autonomy.yml defines where AI can work alone
-- [E] Ephemeral: regenerate generated code, never patch it
 - [A] Assertive: tests enforce invariants, not implementations
 - [R] Reality-Aligned: one source of truth per domain concept
+- [E] Ephemeral: regenerate generated code, never patch it
 
 ## Full Rules
 See `.cursor/rules/` for detailed MDC rule files.
-See `clear/principles.md` for the principle reference card.
+See `clare/principles.md` for the principle reference card.
 See `CLAUDE.md` for the complete workflow specification.

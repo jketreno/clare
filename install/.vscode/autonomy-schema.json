@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CLEAR autonomy.yml schema",
-  "description": "Schema for CLEAR framework autonomy boundary definitions",
+  "title": "CLARE autonomy.yml schema",
+  "description": "Schema for CLARE framework autonomy boundary definitions",
   "type": "object",
   "required": ["project", "modules"],
   "additionalProperties": false,

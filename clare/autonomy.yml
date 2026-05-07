@@ -1,0 +1,123 @@
+# =============================================================================
+# CLARE autonomy.yml — Module Autonomy Boundaries (CLARE seed repository)
+# =============================================================================
+# CLARE Principle: [L] Limited — Define where AI works alone vs with humans
+#
+# This file describes boundaries for developing the CLARE framework itself.
+# When you install CLARE into another repo, run scripts/clare-installer.sh or
+# replace this file with boundaries that match that project's layout.
+#
+# Levels:
+#   full-autonomy  — AI can read, modify, and regenerate freely
+#   supervised     — AI generates code, but human must review before commit
+#   humans-only    — AI must NOT generate code here; flag for human attention
+#
+# AI Instructions:
+#   Before modifying any file, find the most specific matching path in this
+#   file. Apply the corresponding level:
+#     full-autonomy  → proceed normally
+#     supervised     → generate, then add "⚠ Human review required" reminder
+#     humans-only    → STOP. Notify the user. Do not generate code.
+# =============================================================================
+
+project: "clare"
+
+modules:
+  # ── Full Autonomy ──────────────────────────────────────────────────────────
+  # Install artifacts — templates, examples, and configs that are safe to
+  # extend or regenerate, including install/**/verify-ci.sh.
+
+  - path: "install"
+    level: full-autonomy
+    reason: "Install artifacts — templates, skills, examples, and agent configs intended to be adapted freely"
+
+  # ── Supervised ─────────────────────────────────────────────────────────────
+  # Framework behavior and published docs; AI may draft, humans should review.
+
+  - path: "scripts"
+    level: supervised
+    reason: "Build/release scripts affect every adopter; review before release"
+
+  - path: "clare/extensions.yml"
+    level: supervised
+    reason: "Project-owned extension config — AI may draft, human reviews before commit"
+
+  - path: "clare"
+    level: supervised
+    reason: "Autonomy and principle text is policy; review changes"
+
+  - path: "docs/agentic.md"
+    level: supervised
+    reason: "Multi-agent and MCP integration guide — accuracy critical for external adopters"
+
+  - path: "docs"
+    level: supervised
+    reason: "Public documentation should stay accurate and consistent"
+
+  - path: ".github"
+    level: supervised
+    reason: "CI and Copilot instructions shape contributor experience"
+
+  - path: ".cursor"
+    level: supervised
+    reason: "Cursor rules define AI behavior for this repo"
+
+  - path: ".claude"
+    level: supervised
+    reason: "Claude commands and workflow hooks"
+
+  - path: ".vscode"
+    level: supervised
+    reason: "Shared editor tasks and settings affect all contributors"
+
+  - path: "assets"
+    level: supervised
+    reason: "Branding and visual assets — prefer human sign-off"
+
+  # ── Humans only ────────────────────────────────────────────────────────────
+  # Optional: canonical narrative / history — disable AI rewriting.
+
+  - path: "ORIGIN.md"
+    level: humans-only
+    reason: "Historical origin narrative; avoid AI paraphrase that could distort facts"
+
+  # ── Default ─────────────────────────────────────────────────────────────────
+  - path: "*"
+    level: supervised
+    reason: "Root-level configs (README, CLAUDE.md, .cursorrules) and anything unmatched"
+
+# =============================================================================
+# Reality Alignment — Sources of Truth
+# =============================================================================
+# Concepts for this repository (framework metadata, not an application API).
+
+sources_of_truth:
+  - concept: "Autonomy boundaries"
+    source_of_truth: "clare/autonomy.yml"
+    defined_in: "clare/autonomy.yml"
+    note: "If docs or AI configs disagree with this file, this file wins"
+
+  - concept: "Local CI contract"
+    source_of_truth: "clare/verify-ci.sh + clare/verify-local.sh"
+    defined_in: "clare/verify-ci.sh (CLARE-owned), clare/verify-local.sh (project-owned)"
+    note: "verify-ci.sh is the scaffolding; verify-local.sh holds project-specific checks"
+
+  - concept: "Extension configuration"
+    source_of_truth: "clare/extensions.yml"
+    defined_in: "clare/extensions.yml (project-owned)"
+    note: "Optional tool extensions; verify-ci.sh reads this to run enabled extensions"
+
+  - concept: "AI session workflow"
+    source_of_truth: "CLAUDE.md and .cursor/rules/"
+    defined_in: "CLAUDE.md, .cursor/rules/*.mdc"
+    note: "Copilot uses .github/copilot-instructions.md; keep cross-tool rules aligned"
+
+  - concept: "Multi-agent and MCP enforcement"
+    source_of_truth: "docs/agentic.md"
+    defined_in: "docs/agentic.md"
+    note: "Canonical patterns for orchestrators, sub-agents, and MCP tool integration"
+
+  - concept: "Installed file layout"
+    source_of_truth: "install/"
+    defined_in: "install/ directory tree"
+    note: "The install/ directory defines what gets installed into target projects; scripts/clare-installer.sh reads from it"

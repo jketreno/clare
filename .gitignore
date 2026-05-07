@@ -47,8 +47,8 @@ Thumbs.db
 .claude/settings.local.json
 .cursor/settings.json
 
-# CLEAR local overrides (users may create these without committing them)
-clear/local-overrides.yml
+# CLARE local overrides (users may create these without committing them)
+clare/local-overrides.yml
 
 # Personal planning docs
 GAMEPLAN.md

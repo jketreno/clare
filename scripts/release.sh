@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# CLEAR release.sh — Make a release with tagged source and GitHub artifacts
+# CLARE release.sh — Make a release with tagged source and GitHub artifacts
 # =============================================================================
 # Usage:
 #   ./scripts/release.sh
@@ -30,8 +30,8 @@ NOTES_FILE=""
 NOTES_TEMPLATE="$PROJECT_ROOT/docs/release-notes-template.md"
 SIGNING_KEY=""
 SIGN_ARTIFACTS=true
-KEY_PATH="docs/keys/clear-release-signing-public.asc"
-FINGERPRINT_FILE="$PROJECT_ROOT/docs/keys/clear-release-signing-fingerprint.txt"
+KEY_PATH="docs/keys/clare-release-signing-public.asc"
+FINGERPRINT_FILE="$PROJECT_ROOT/docs/keys/clare-release-signing-fingerprint.txt"
 TEMP_NOTES_FILE=""
 
 cleanup_release_temp_files() {
@@ -50,8 +50,8 @@ generate_release_notes() {
   local fingerprint_file="$5"
   local include_signature="$6"
 
-  local release_base="https://github.com/jketreno/clear/releases/download/v${version}"
-  local key_url="https://raw.githubusercontent.com/jketreno/clear/v${version}/${key_path}"
+  local release_base="https://github.com/jketreno/clare/releases/download/v${version}"
+  local key_url="https://raw.githubusercontent.com/jketreno/clare/v${version}/${key_path}"
 
   local fingerprint="(unavailable)"
   if [[ -f "$fingerprint_file" ]]; then
@@ -60,12 +60,12 @@ generate_release_notes() {
 
   local signature_section
   if [[ "$include_signature" == "true" ]]; then
-    signature_section="gpg --verify clear-installer-v${version}.sha256.asc clear-installer-v${version}.sha256\nsha256sum -c clear-installer-v${version}.sha256"
+    signature_section="gpg --verify clare-installer-v${version}.sha256.asc clare-installer-v${version}.sha256\nsha256sum -c clare-installer-v${version}.sha256"
   else
     signature_section="This release was generated in break-glass mode without detached signature artifacts (--no-sign)."
   fi
 
-  local download_section="curl -fsSLO ${release_base}/clear-installer-v${version}.sh\ncurl -fsSLO ${release_base}/clear-installer-v${version}.sha256\ncurl -fsSLO ${release_base}/clear-installer-v${version}.sha256.asc\ncurl -fsSL -o clear-release-signing-public.asc ${key_url}\ngpg --import clear-release-signing-public.asc"
+  local download_section="curl -fsSLO ${release_base}/clare-installer-v${version}.sh\ncurl -fsSLO ${release_base}/clare-installer-v${version}.sha256\ncurl -fsSLO ${release_base}/clare-installer-v${version}.sha256.asc\ncurl -fsSL -o clare-release-signing-public.asc ${key_url}\ngpg --import clare-release-signing-public.asc"
 
   if [[ -f "$template_file" ]]; then
     awk \
@@ -84,24 +84,24 @@ generate_release_notes() {
       }' "$template_file" >"$output_file"
   else
     cat >"$output_file" <<EOF
-# CLEAR v${version}
+# CLARE v${version}
 
 ## Release Artifacts
 
-- clear-installer-v${version}.sh
-- clear-installer-v${version}.sha256
-- clear-installer-v${version}.sha256.asc
+- clare-installer-v${version}.sh
+- clare-installer-v${version}.sha256
+- clare-installer-v${version}.sha256.asc
 
 ## Verify Before Running
 
 Public key file: ${key_path}
 Fingerprint: ${fingerprint}
 
-curl -fsSLO ${release_base}/clear-installer-v${version}.sh
-curl -fsSLO ${release_base}/clear-installer-v${version}.sha256
-curl -fsSLO ${release_base}/clear-installer-v${version}.sha256.asc
-curl -fsSL -o clear-release-signing-public.asc ${key_url}
-gpg --import clear-release-signing-public.asc
+curl -fsSLO ${release_base}/clare-installer-v${version}.sh
+curl -fsSLO ${release_base}/clare-installer-v${version}.sha256
+curl -fsSLO ${release_base}/clare-installer-v${version}.sha256.asc
+curl -fsSL -o clare-release-signing-public.asc ${key_url}
+gpg --import clare-release-signing-public.asc
 
 ${signature_section}
 
@@ -151,7 +151,7 @@ Usage: ./scripts/release.sh [options]
 Options:
   --version <semver>   Override VERSION file value
   --dry-run            Print actions without mutating git/GitHub
-  --skip-verify        Skip ./clear/verify-ci.sh (break-glass; bypasses local CI gate)
+  --skip-verify        Skip ./clare/verify-ci.sh (break-glass; bypasses local CI gate)
   --yes                Auto-confirm interactive prompts
   --notes-file <path>  File to use for GitHub release notes
   --notes-template <path> Template file used when --notes-file is omitted
@@ -219,9 +219,9 @@ fi
 if [[ "$SKIP_VERIFY" != "true" ]]; then
   rl_info "Running verify-ci gate"
   if [[ "$DRY_RUN" == "true" ]]; then
-    echo "DRY_RUN: ./clear/verify-ci.sh"
+    echo "DRY_RUN: ./clare/verify-ci.sh"
   else
-    ./clear/verify-ci.sh
+    ./clare/verify-ci.sh
   fi
 fi
 
@@ -239,9 +239,9 @@ fi
 rl_info "Building release artifacts"
 rl_run "$DRY_RUN" "${build_cmd[@]}"
 
-INSTALLER_PATH="$OUTPUT_DIR/clear-installer-v$VERSION.sh"
-CHECKSUM_PATH="$OUTPUT_DIR/clear-installer-v$VERSION.sha256"
-SIGNATURE_PATH="$OUTPUT_DIR/clear-installer-v$VERSION.sha256.asc"
+INSTALLER_PATH="$OUTPUT_DIR/clare-installer-v$VERSION.sh"
+CHECKSUM_PATH="$OUTPUT_DIR/clare-installer-v$VERSION.sha256"
+SIGNATURE_PATH="$OUTPUT_DIR/clare-installer-v$VERSION.sha256.asc"
 
 if [[ "$DRY_RUN" != "true" ]]; then
   [[ -f "$INSTALLER_PATH" ]] || rl_die 4 "Missing installer artifact: $INSTALLER_PATH"
@@ -295,7 +295,7 @@ if [[ "$DRY_RUN" != "true" ]]; then
 fi
 
 rl_info "Creating and pushing git tag"
-rl_run "$DRY_RUN" git tag -a "v$VERSION" -m "CLEAR v$VERSION"
+rl_run "$DRY_RUN" git tag -a "v$VERSION" -m "CLARE v$VERSION"
 rl_run "$DRY_RUN" git push origin "v$VERSION"
 
 release_assets=("$INSTALLER_PATH" "$CHECKSUM_PATH")
@@ -305,7 +305,7 @@ fi
 
 gh_cmd=(gh release create "v$VERSION")
 gh_cmd+=("${release_assets[@]}")
-gh_cmd+=(--title "CLEAR v$VERSION")
+gh_cmd+=(--title "CLARE v$VERSION")
 gh_cmd+=(--notes-file "$NOTES_FILE")
 
 rl_info "Publishing GitHub release"

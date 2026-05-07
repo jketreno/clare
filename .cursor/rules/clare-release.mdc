@@ -1,0 +1,16 @@
+---
+description: CLARE release workflow skill
+alwaysApply: false
+---
+
+# CLARE Release Workflow
+
+Use this rule when the user asks to cut or publish a release.
+
+## Required flow
+
+1. Follow `.github/skills/release.md`.
+2. Publish release artifacts (`.sh`, `.sha256`, `.sha256.asc`).
+3. After successful publish, update README "CLARE in 60 Seconds" to the latest release tag.
+4. README must include exact copy/paste download commands and verification commands.
+5. Run `./clare/verify-ci.sh` before reporting completion.

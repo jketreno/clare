@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "CLEAR: Verify CI",
+      "label": "CLARE: Verify CI",
       "type": "shell",
-      "command": "./clear/verify-ci.sh",
+      "command": "./clare/verify-ci.sh",
       "group": {
         "kind": "test",
         "isDefault": true
@@ -21,9 +21,9 @@
       "detail": "Run all CI/CD checks locally. Must pass before marking work complete."
     },
     {
-      "label": "CLEAR: Verify CI (fast)",
+      "label": "CLARE: Verify CI (fast)",
       "type": "shell",
-      "command": "./clear/verify-ci.sh --fast",
+      "command": "./clare/verify-ci.sh --fast",
       "group": "test",
       "presentation": {
         "echo": true,
@@ -37,9 +37,9 @@
       "detail": "Run CI checks, skipping slow architecture tests."
     },
     {
-      "label": "CLEAR: Verify CI (fix)",
+      "label": "CLARE: Verify CI (fix)",
       "type": "shell",
-      "command": "./clear/verify-ci.sh --fix",
+      "command": "./clare/verify-ci.sh --fix",
       "group": "test",
       "presentation": {
         "echo": true,
@@ -52,9 +52,9 @@
       "detail": "Run CI checks with auto-fix for lint issues."
     },
     {
-      "label": "CLEAR: Show Autonomy Boundaries",
+      "label": "CLARE: Show Autonomy Boundaries",
       "type": "shell",
-      "command": "cat clear/autonomy.yml",
+      "command": "cat clare/autonomy.yml",
       "group": "none",
       "presentation": {
         "echo": true,

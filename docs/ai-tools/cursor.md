@@ -1,33 +1,33 @@
 # Cursor Setup Guide
 
-> CLEAR configures Cursor through `.cursor/rules/*.mdc` files (MDC format) that apply automatically based on file patterns or globally. A `.cursorrules` fallback is included for older Cursor versions.
+> CLARE configures Cursor through `.cursor/rules/*.mdc` files (MDC format) that apply automatically based on file patterns or globally. A `.cursorrules` fallback is included for older Cursor versions.
 
 ---
 
 ## Prerequisites
 
 - Cursor IDE installed
-- CLEAR files copied into your project (see [docs/getting-started.md](../getting-started.md))
+- CLARE files copied into your project (see [docs/getting-started.md](../getting-started.md))
 
 ---
 
-## How CLEAR Configures Cursor
+## How CLARE Configures Cursor
 
 ### Primary: `.cursor/rules/*.mdc` files
 
-Cursor reads `.mdc` files from `.cursor/rules/` and applies them automatically. CLEAR includes six rule files:
+Cursor reads `.mdc` files from `.cursor/rules/` and applies them automatically. CLARE includes six rule files:
 
-| Rule file | Application | CLEAR principle |
+| Rule file | Application | CLARE principle |
 |-----------|------------|-----------------|
-| `clear-workflow.mdc` | All files (alwaysApply) | Workflow: verify-ci.sh, PLAN mode |
-| `clear-limited.mdc` | All files (alwaysApply) | [L] Check autonomy.yml before every change |
-| `clear-constrained.mdc` | All files (alwaysApply) | [C] Enforce rules via tests and linters |
-| `clear-ephemeral.mdc` | All files (alwaysApply) | [E] Regenerate generated code, don't patch |
-| `clear-reality-aligned.mdc` | All files (alwaysApply) | [R] Derive from declared source of truth |
-| `clear-assertive.mdc` | Test files (globs) | [A] Write invariant tests, not confirmations |
+| `clare-workflow.mdc` | All files (alwaysApply) | Workflow: verify-ci.sh, PLAN mode |
+| `clare-constrained.mdc` | All files (alwaysApply) | [C] Enforce rules via tests and linters |
+| `clare-limited.mdc` | All files (alwaysApply) | [L] Check autonomy.yml before every change |
+| `clare-assertive.mdc` | Test files (globs) | [A] Write invariant tests, not confirmations |
+| `clare-reality-aligned.mdc` | All files (alwaysApply) | [R] Derive from declared source of truth |
+| `clare-ephemeral.mdc` | All files (alwaysApply) | [E] Regenerate generated code, don't patch |
 
 Install note:
-- These six rule files are installed by CLEAR automatically.
+- These six rule files are installed by CLARE automatically.
 - Additional `.cursor/rules/*.mdc` files are project-specific and should be added manually.
 
 Expected directory structure:
@@ -35,12 +35,12 @@ Expected directory structure:
 ```text
 .cursor/
   rules/
-    clear-workflow.mdc
-    clear-limited.mdc
-    clear-constrained.mdc
-    clear-ephemeral.mdc
-    clear-reality-aligned.mdc
-    clear-assertive.mdc
+    clare-workflow.mdc
+    clare-constrained.mdc
+    clare-limited.mdc
+    clare-assertive.mdc
+    clare-reality-aligned.mdc
+    clare-ephemeral.mdc
 ```
 
 ### Fallback: `.cursorrules`
@@ -73,15 +73,15 @@ globs: ["**/*.test.ts", "tests/**"]  # Apply only to matching files
 
 ## Verifying the Configuration
 
-After setting up CLEAR, test each rule in Cursor:
+After setting up CLARE, test each rule in Cursor:
 
 **Test [L] Limited:**
-Ask Cursor: "What autonomy level applies to `src/payment/processor.ts` based on clear/autonomy.yml?"
+Ask Cursor: "What autonomy level applies to `src/payment/processor.ts` based on clare/autonomy.yml?"
 Expected: Cursor reports the level and reason without modifying files.
 
 **Test workflow:**
 Ask Cursor "What must you do before marking work complete?"
-Expected: Mentions `./clear/verify-ci.sh`.
+Expected: Mentions `./clare/verify-ci.sh`.
 
 **Test PLAN mode:**
 Ask Cursor to implement a new feature.
@@ -102,7 +102,7 @@ globs: ["backend/models/**", "frontend/src/types/**"]
 # Type Sync Skill
 
 When modifying Python Pydantic models in backend/models/:
-[content of clear/examples/skills/type-sync.md]
+[content of clare/examples/skills/type-sync.md]
 ```
 
 ### Domain-specific rule (for a specific module)
@@ -115,7 +115,7 @@ globs: ["src/payment/**"]
 
 # Payment Module
 
-This module is marked `humans-only` in clear/autonomy.yml.
+This module is marked `humans-only` in clare/autonomy.yml.
 Do not generate code in this directory.
 If asked to modify payment logic, explain: [explanation]
 Ask the user to make the change manually.
@@ -146,11 +146,11 @@ These tests:
 For complex multi-file changes, use Cursor Composer (Ctrl/Cmd + I):
 
 1. Open Composer
-2. CLEAR rules apply automatically
+2. CLARE rules apply automatically
 3. Composer respects autonomy boundaries:
    - Generates code for `supervised` paths with a review reminder
    - Refuses code for `humans-only` paths
-4. After generation: "Run `./clear/verify-ci.sh`" appears in the output
+4. After generation: "Run `./clare/verify-ci.sh`" appears in the output
 
 ---
 
@@ -193,9 +193,9 @@ For complex multi-file changes, use Cursor Composer (Ctrl/Cmd + I):
 **verify-ci.sh not running:**
 - Cursor can run terminal commands if you enable it in Settings
 - Alternatively: bind a keyboard shortcut to terminal commands in VS Code-compatible keybindings
-- Or run manually: `Ctrl + \`` → `./clear/verify-ci.sh`
+- Or run manually: `Ctrl + \`` → `./clare/verify-ci.sh`
 
 **`.cursorrules` vs `.cursor/rules/`:**
 - Cursor supports both. If you're on an older version, `.cursorrules` is the fallback
-- CLEAR includes both; the `.cursorrules` file is a summary that points to `.cursor/rules/`
+- CLARE includes both; the `.cursorrules` file is a summary that points to `.cursor/rules/`
 - Upgrading to a current Cursor version enables the more granular MDC rule system

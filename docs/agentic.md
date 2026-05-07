@@ -1,6 +1,6 @@
-# CLEAR with Multi-Agent Pipelines and MCP
+# CLARE with Multi-Agent Pipelines and MCP
 
-> CLEAR was designed for single-session AI tools, but its core primitives — `verify-ci.sh` and `autonomy.yml` — apply equally to orchestrated multi-agent workflows. This guide explains how.
+> CLARE was designed for single-session AI tools, but its core primitives — `verify-ci.sh` and `autonomy.yml` — apply equally to orchestrated multi-agent workflows. This guide explains how.
 
 ---
 
@@ -13,7 +13,7 @@ Single-session AI tools (Claude Code, Cursor, Copilot) load your CLAUDE.md or ru
 - **Ephemeral agents** complete one task and exit — there's no persistent "memory" of the rules
 - **Headless agents** (running in CI, cron jobs, or triggered by events) have no interactive session at all
 
-The question: **how do you enforce CLEAR principles when there's no persistent session to hold the rules?**
+The question: **how do you enforce CLARE principles when there's no persistent session to hold the rules?**
 
 The answer: **make enforcement stateless**.
 
@@ -23,12 +23,12 @@ The answer: **make enforcement stateless**.
 
 ```text
 function runClearAgentPipeline(tasks):
-  restricted = clear_list_humans_only()
+  restricted = clare_list_humans_only()
 
   for task in tasks:
     candidatePaths = predict_changed_paths(task)
     for p in candidatePaths:
-      level = clear_check_autonomy(p)
+      level = clare_check_autonomy(p)
       if level == "humans-only":
         stop_and_request_human(task, p)
 
@@ -36,7 +36,7 @@ function runClearAgentPipeline(tasks):
   if any(result.status != "done" for result in results):
     fail_pipeline("sub-agent failure")
 
-  verify = clear_verify()
+  verify = clare_verify()
   if verify.status != "passed":
     fail_pipeline("post-flight verify failed")
 
@@ -48,8 +48,8 @@ function runClearAgentPipeline(tasks):
 | Dimension | Single-agent session | Multi-agent pipeline |
 |---|---|---|
 | Autonomy check timing | Agent checks before edits in-session | Orchestrator pre-flight + sub-agent guard |
-| Verification gate | Agent runs `./clear/verify-ci.sh` once before completion | Each sub-agent runs verify + final orchestrator verify |
-| Rule propagation | Prompt/session memory | Tool contract (`clear_check_autonomy`, `clear_verify`) |
+| Verification gate | Agent runs `./clare/verify-ci.sh` once before completion | Each sub-agent runs verify + final orchestrator verify |
+| Rule propagation | Prompt/session memory | Tool contract (`clare_check_autonomy`, `clare_verify`) |
 | Failure containment | One session rollback | Isolated task retry + post-merge verification |
 | Humans-only enforcement | Prompt-based refusal | Delegation block at orchestrator boundary |
 
@@ -59,8 +59,8 @@ function runClearAgentPipeline(tasks):
 
 ### The risk: agents that skip the check
 
-In a single session, the AI reads CLEAR config at startup and checks autonomy.yml before every file modification. In an orchestrated pipeline, a sub-agent may:
-- Have no knowledge of CLEAR or autonomy.yml
+In a single session, the AI reads CLARE config at startup and checks autonomy.yml before every file modification. In an orchestrated pipeline, a sub-agent may:
+- Have no knowledge of CLARE or autonomy.yml
 - Be a different AI system entirely (GPT-4, Gemini, local model)
 - Be spawned with a minimal system prompt focused only on its subtask
 
@@ -69,14 +69,14 @@ In a single session, the AI reads CLEAR config at startup and checks autonomy.ym
 Before delegating a subtask to a sub-agent, the orchestrator (or a pre-flight step) should:
 
 1. Identify which files the sub-task will likely touch
-2. Look up their autonomy levels in `clear/autonomy.yml`
+2. Look up their autonomy levels in `clare/autonomy.yml`
 3. Refuse to delegate if any path is `humans-only`
 4. Include `supervised` path warnings in the sub-agent's instructions
 
 **Example orchestrator pre-flight prompt:**
 
 ```
-Before assigning this task to a sub-agent, check clear/autonomy.yml.
+Before assigning this task to a sub-agent, check clare/autonomy.yml.
 
 Task: "Add rate limiting to the payment endpoint"
 Files likely touched: src/payment/processor.ts, src/middleware/rate-limit.ts
@@ -92,13 +92,13 @@ Only delegate if no humans-only paths are involved.
 
 ### Architecture test: autonomy guard for pipelines
 
-The `clear/templates/architecture-tests/autonomy-guard.test.js` template can be run as a pre-commit or CI gate, catching any changes that touch `humans-only` paths regardless of which agent made them:
+The `clare/templates/architecture-tests/autonomy-guard.test.js` template can be run as a pre-commit or CI gate, catching any changes that touch `humans-only` paths regardless of which agent made them:
 
 ```javascript
 // tests/architecture/autonomy-guard.test.js
 test('no commits touch humans-only paths without explicit override', () => {
   const changedFiles = getChangedFiles(); // git diff --name-only HEAD
-  const humansOnly = getHumansOnlyPaths('clear/autonomy.yml');
+  const humansOnly = getHumansOnlyPaths('clare/autonomy.yml');
   
   const violations = changedFiles.filter(f => 
     humansOnly.some(p => f.startsWith(p))
@@ -114,7 +114,7 @@ This is your last line of defense — runs in CI even if no agent ever checked a
 
 ## verify-ci.sh as the Universal Gate
 
-`verify-ci.sh` is the most portable CLEAR primitive for multi-agent use. Every agent, regardless of its AI provider or session state, should run it before reporting work complete.
+`verify-ci.sh` is the most portable CLARE primitive for multi-agent use. Every agent, regardless of its AI provider or session state, should run it before reporting work complete.
 
 ### Passing the gate requirement to any agent
 
@@ -122,7 +122,7 @@ For sub-agents in your pipeline, include this in every task prompt:
 
 ```
 After completing your changes, run:
-  ./clear/verify-ci.sh
+  ./clare/verify-ci.sh
 
 Do not report the task as complete until all checks pass.
 If the script fails, fix the errors and run again.
@@ -132,26 +132,26 @@ This is provider-agnostic. It works whether the sub-agent is Claude, GPT-4, a lo
 
 ### CI/CD as the final backstop
 
-Even if a sub-agent skips `verify-ci.sh`, the GitHub Actions workflow in `clear/templates/github-actions/ci.yml` catches it at PR time. The pipeline runs the same checks — no agent can merge code that fails them.
+Even if a sub-agent skips `verify-ci.sh`, the GitHub Actions workflow in `clare/templates/github-actions/ci.yml` catches it at PR time. The pipeline runs the same checks — no agent can merge code that fails them.
 
 ---
 
 ## MCP Integration
 
-[MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is the emerging standard for giving AI agents structured, typed access to tools and data sources. Exposing CLEAR as MCP tools makes enforcement available to any MCP-compatible agent or orchestrator without requiring bash execution or file reading.
+[MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is the emerging standard for giving AI agents structured, typed access to tools and data sources. Exposing CLARE as MCP tools makes enforcement available to any MCP-compatible agent or orchestrator without requiring bash execution or file reading.
 
-### Why MCP for CLEAR?
+### Why MCP for CLARE?
 
 | Without MCP | With MCP |
 |-------------|----------|
-| Agent must parse autonomy.yml manually | Agent calls `clear_check_autonomy(path)` → gets typed result |
-| Orchestrator runs bash to invoke verify-ci.sh | Orchestrator calls `clear_verify()` → gets structured pass/fail + error list |
-| Sub-agents have no discoverable enforcement interface | CLEAR tools are discoverable in the MCP server manifest |
+| Agent must parse autonomy.yml manually | Agent calls `clare_check_autonomy(path)` → gets typed result |
+| Orchestrator runs bash to invoke verify-ci.sh | Orchestrator calls `clare_verify()` → gets structured pass/fail + error list |
+| Sub-agents have no discoverable enforcement interface | CLARE tools are discoverable in the MCP server manifest |
 | Provider-specific prompt engineering required | Any MCP-compatible agent uses the same tool interface |
 
-### The three CLEAR MCP tools
+### The three CLARE MCP tools
 
-**`clear_verify`** — runs `clear/verify-ci.sh` and returns structured results:
+**`clare_verify`** — runs `clare/verify-ci.sh` and returns structured results:
 ```json
 {
   "status": "failed",
@@ -161,7 +161,7 @@ Even if a sub-agent skips `verify-ci.sh`, the GitHub Actions workflow in `clear/
 }
 ```
 
-**`clear_check_autonomy`** — looks up a path in `clear/autonomy.yml`:
+**`clare_check_autonomy`** — looks up a path in `clare/autonomy.yml`:
 ```json
 {
   "path": "src/payment/processor.ts",
@@ -171,19 +171,19 @@ Even if a sub-agent skips `verify-ci.sh`, the GitHub Actions workflow in `clear/
 }
 ```
 
-**`clear_list_humans_only`** — returns all `humans-only` paths; useful for pre-flight checks:
+**`clare_list_humans_only`** — returns all `humans-only` paths; useful for pre-flight checks:
 ```json
 {
   "humans_only_paths": ["src/payment", "src/auth/core", "ORIGIN.md"]
 }
 ```
 
-### Scaffolding a CLEAR MCP server
+### Scaffolding a CLARE MCP server
 
-Use the skill template at `clear/templates/skills/mcp-server.md` to generate a minimal MCP server for your project. The template generates a Node.js or Python server that wraps these three tools.
+Use the skill template at `clare/templates/skills/mcp-server.md` to generate a minimal MCP server for your project. The template generates a Node.js or Python server that wraps these three tools.
 
 ```
-Follow clear/templates/skills/mcp-server.md to scaffold a CLEAR MCP server
+Follow clare/templates/skills/mcp-server.md to scaffold a CLARE MCP server
 for this project.
 ```
 
@@ -193,45 +193,45 @@ Register the server in your Claude Code settings:
 // .claude/settings.json (or ~/.claude/settings.json for global)
 {
   "mcpServers": {
-    "clear": {
+    "clare": {
       "command": "node",
-      "args": ["./mcp/clear-server.js"]
+      "args": ["./mcp/clare-server.js"]
     }
   }
 }
 ```
 
 Once registered, Claude Code (and any other MCP client) can call these tools directly:
-- `mcp__clear__clear_verify` — run CI checks
-- `mcp__clear__clear_check_autonomy` — check a path
-- `mcp__clear__clear_list_humans_only` — list restricted paths
+- `mcp__clare__clare_verify` — run CI checks
+- `mcp__clare__clare_check_autonomy` — check a path
+- `mcp__clare__clare_list_humans_only` — list restricted paths
 
 ---
 
-## Multi-Agent Patterns with CLEAR
+## Multi-Agent Patterns with CLARE
 
 ### Pattern 1: Orchestrator + Sub-agents
 
 ```
 Orchestrator
-  ├── Pre-flight: clear_list_humans_only → identify restricted zones
+  ├── Pre-flight: clare_list_humans_only → identify restricted zones
   ├── Task assignment: include autonomy level in each sub-agent prompt
-  ├── Sub-agent A: implements feature (runs clear_verify before reporting done)
-  ├── Sub-agent B: writes tests (runs clear_verify before reporting done)
-  └── Post-flight: orchestrator calls clear_verify as final gate
+  ├── Sub-agent A: implements feature (runs clare_verify before reporting done)
+  ├── Sub-agent B: writes tests (runs clare_verify before reporting done)
+  └── Post-flight: orchestrator calls clare_verify as final gate
 ```
 
-**Key rule:** The orchestrator enforces autonomy. Sub-agents enforce verification. Both run `clear_verify` — sub-agents after their own work, orchestrator after all sub-agents complete.
+**Key rule:** The orchestrator enforces autonomy. Sub-agents enforce verification. Both run `clare_verify` — sub-agents after their own work, orchestrator after all sub-agents complete.
 
 ### Pattern 2: Parallel Code Generation
 
 When multiple agents modify different parts of the codebase in parallel:
 
-1. Each agent checks its target paths via `clear_check_autonomy` before starting
+1. Each agent checks its target paths via `clare_check_autonomy` before starting
 2. `humans-only` paths block delegation entirely — the agent should not start
 3. `supervised` paths get a flag in the agent's instructions
-4. Each agent runs `clear_verify` independently when done
-5. A merge/integration step runs `clear_verify` one final time on the combined result
+4. Each agent runs `clare_verify` independently when done
+5. A merge/integration step runs `clare_verify` one final time on the combined result
 
 This prevents one agent's changes from breaking another agent's work only after they're combined.
 
@@ -239,48 +239,48 @@ This prevents one agent's changes from breaking another agent's work only after 
 
 Agents triggered by webhooks, CI events, or scheduled jobs have no interactive session. They should:
 
-1. Read `clear/autonomy.yml` at startup and refuse to touch `humans-only` paths
-2. Run `./clear/verify-ci.sh` (or call `clear_verify` via MCP) as the final step
+1. Read `clare/autonomy.yml` at startup and refuse to touch `humans-only` paths
+2. Run `./clare/verify-ci.sh` (or call `clare_verify` via MCP) as the final step
 3. Fail loudly (non-zero exit) if verification fails — let the pipeline catch it
 
-The GitHub Actions template at `clear/templates/github-actions/ci.yml` is exactly this pattern: a headless agent that runs `verify-ci.sh` on every PR.
+The GitHub Actions template at `clare/templates/github-actions/ci.yml` is exactly this pattern: a headless agent that runs `verify-ci.sh` on every PR.
 
 ### Pattern 4: Agentic Code Review
 
 Instead of a human reviewing every AI-generated PR, use an agent that:
 
-1. Calls `clear_verify` — if it fails, the PR is not ready for review
-2. Calls `clear_list_humans_only` — flags any changes to restricted paths
+1. Calls `clare_verify` — if it fails, the PR is not ready for review
+2. Calls `clare_list_humans_only` — flags any changes to restricted paths
 3. Checks that new tests are constraint tests, not confirmation tests (see [docs/principles/assertive.md](principles/assertive.md))
-4. Posts a structured report: "CLEAR checks: ✅ Passed / ❌ Autonomy violation in src/payment"
+4. Posts a structured report: "CLARE checks: ✅ Passed / ❌ Autonomy violation in src/payment"
 
-This turns CLEAR enforcement from a human responsibility into an automated gate.
+This turns CLARE enforcement from a human responsibility into an automated gate.
 
 ---
 
-## What CLEAR Does Not Solve in Multi-Agent Contexts
+## What CLARE Does Not Solve in Multi-Agent Contexts
 
-CLEAR is an architectural guardrail, not a coordination protocol. It does not:
+CLARE is an architectural guardrail, not a coordination protocol. It does not:
 
 - **Manage agent communication** — use a proper orchestration framework (LangGraph, CrewAI, Claude Agents SDK) for that
 - **Prevent conflicting concurrent writes** — handle file locking or task partitioning at the orchestrator level
 - **Replace integration tests** — `verify-ci.sh` runs unit/architecture tests locally; full integration tests still need a real environment
 - **Audit which agent made which change** — use `git blame` and commit messages for attribution; structure agent commits with clear messages
 
-CLEAR's job is to ensure that whatever any agent generates, it passes your architectural invariants before it reaches review or merge. The coordination of *how* agents work together is a separate problem.
+CLARE's job is to ensure that whatever any agent generates, it passes your architectural invariants before it reaches review or merge. The coordination of *how* agents work together is a separate problem.
 
 ---
 
-## Checklist: Multi-Agent CLEAR Setup
+## Checklist: Multi-Agent CLARE Setup
 
-- [ ] `clear/autonomy.yml` configured with `humans-only` paths for sensitive modules
-- [ ] `clear/verify-ci.sh` tested and passing on current codebase
+- [ ] `clare/autonomy.yml` configured with `humans-only` paths for sensitive modules
+- [ ] `clare/verify-ci.sh` tested and passing on current codebase
 - [ ] Architecture tests cover key invariants (not just behavior)
 - [ ] `autonomy-guard.test.js` added to CI as final backstop
 - [ ] GitHub Actions workflow runs `verify-ci.sh` on every PR
-- [ ] (Optional) CLEAR MCP server scaffolded from `clear/templates/skills/mcp-server.md`
+- [ ] (Optional) CLARE MCP server scaffolded from `clare/templates/skills/mcp-server.md`
 - [ ] Orchestrator prompt template includes autonomy pre-flight check
-- [ ] Sub-agent prompts include `clear/verify-ci.sh` requirement
+- [ ] Sub-agent prompts include `clare/verify-ci.sh` requirement
 
 ---
 
@@ -292,4 +292,4 @@ CLEAR's job is to ensure that whatever any agent generates, it passes your archi
 | Writing constraint tests for agentic code | [docs/principles/assertive.md](principles/assertive.md) |
 | Generated code workflows | [docs/principles/ephemeral.md](principles/ephemeral.md) |
 | Claude Code + MCP setup | [docs/ai-tools/claude.md](ai-tools/claude.md) |
-| MCP server skill template | [clear/templates/skills/mcp-server.md](../install/clear/templates/skills/mcp-server.md) |
+| MCP server skill template | [clare/templates/skills/mcp-server.md](../install/clare/templates/skills/mcp-server.md) |

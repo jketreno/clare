@@ -10,15 +10,15 @@ Then you add Cursor, Copilot, or Claude to the mix, and suddenly you're generati
 
 The problem isn't the AI. The problem is your architecture rules exist in people's heads and code review comments. LLMs can't read your mind.
 
-## What Actually Works: CLEAR
+## What Actually Works: CLARE
 
-I've been looking at how teams are handling this. There's a pattern emerging that makes sense. I'm calling it **CLEAR (Constrained, Limited, Ephemeral, Assertive, Reality-Aligned)** (the acronym itself was AI-generated from my tenets — a fitting origin for a framework about constraint-driven generation):
+I've been looking at how teams are handling this. There's a pattern emerging that makes sense. I'm calling it **CLARE (Constrained, Limited, Assertive, Reality-Aligned, Ephemeral)** (the acronym itself was AI-generated from my tenets — a fitting origin for a framework about constraint-driven generation):
 
 - **C**onstrained - Make your rules enforced, not suggested
 - **L**imited - Define where AI can work alone vs where you need humans  
-- **E**phemeral - Stop editing code you or AI could regenerate
 - **A**ssertive - Write tests that define what must always be true
 - **R**eality-Aligned - Your domain model must match actual business reality
+- **E**phemeral - Stop editing code you or AI could regenerate
 
 Let me break down what each of these means in practice:
 
@@ -167,7 +167,7 @@ Humans Only (no AI generation):
 
 But how do you actually enforce this? You can't just write it in a YAML file and hope the AI reads it. You need it embedded in your workflow, your tools, and your constraints.
 
-For a working implementation of autonomy boundaries that's actually enforced through tooling and AI instructions, check out the CLEAR bootstrap project at https://github.com/jketreno/clear. It shows how to make these boundaries machine-readable and enforceable rather than just documentation.
+For a working implementation of autonomy boundaries that's actually enforced through tooling and AI instructions, check out the CLARE bootstrap project at https://github.com/jketreno/clare. It shows how to make these boundaries machine-readable and enforceable rather than just documentation.
 
 There's a second-order benefit here that teams miss until they've lived it: **the autonomy label is a signal to every other human on the team, not just the AI.**
 
@@ -177,75 +177,9 @@ Compare that to today: a `git diff` doesn't tell you whether you're looking at t
 
 Explicit autonomy boundaries change that. A diff through full-autonomy code gets a different kind of attention than a diff through humans-only code. That's not lowering your standards. That's applying them correctly.
 
-### **[E] Ephemeral** - Stop Editing Generated Code You or AI Could Regenerate
-
-Here's the workflow that's working: Set up your boundaries once using skills and rules files at the repository level. Then leverage AI to create all the boilerplate that adheres to those boundaries.
-
-Example - keeping Python backend and TypeScript frontend types in sync:
-
-```markdown
-When defining shared data structures:
-
-Backend (Python):
-- Use Pydantic v2 models with Field() for validation
-- CamelCase for class names, snake_case for fields
-- Include model_config with json_schema_extra for TS mapping
-- Add docstrings that will become TS comments
-
-Frontend (TypeScript):
-- Generate matching TS interfaces in src/types/api/
-- Use camelCase for property names (snake_case → camelCase conversion)
-- Include the same validation rules as Zod schemas
-- Preserve comments from Python docstrings
-
-Example mapping:
-Python: user_id: str = Field(min_length=1)
-TypeScript: userId: string  // + Zod: z.string().min(1)
-
-All shared types must be defined in backend/models/api/
-and have corresponding generated TS in frontend/src/types/api/
-
-When I update a Python model, remind me to regenerate the TS types.
-```
-
-Now when I say "create a User model with email and subscription status", the agent generates:
-
-Backend:
-```python
-class User(BaseModel):
-    """User account information"""
-    user_id: str = Field(min_length=1, description="Unique user identifier")
-    email: EmailStr = Field(description="User email address")
-    subscription_status: Literal["free", "premium", "enterprise"]
-    
-    model_config = ConfigDict(json_schema_extra={"ts_interface": "User"})
-```
-
-Frontend:
-```typescript
-/** User account information */
-export interface User {
-  /** Unique user identifier */
-  userId: string;
-  /** User email address */
-  email: string;
-  subscriptionStatus: "free" | "premium" | "enterprise";
-}
-
-export const UserSchema = z.object({
-  userId: z.string().min(1),
-  email: z.string().email(),
-  subscriptionStatus: z.enum(["free", "premium", "enterprise"]),
-});
-```
-
-The first time you write the rules file takes work. Every subsequent model follows those rules automatically. When you add a field to User in Python, you ask AI to regenerate the TypeScript types - it reads the rules and keeps everything in sync.
-
-The AI isn't running a build script - it's reading your constraints and generating code that respects them across both languages. That's way more powerful than traditional code generation because the AI understands the meaning, not just the syntax.
-
 ### **[A] Assertive** - Write Tests That Define What Must Always Be True
 
-Here's where Ephemeral and Assertive work together. You've set up the rules for generating Python and TypeScript types. Now you need tests that guarantee they stay compatible.
+Here's where generated-code rules and Assertive tests work together. You need tests that guarantee Python and TypeScript types stay compatible.
 
 Use PLAN mode to design the test framework with AI:
 
@@ -411,9 +345,75 @@ A simple exercise that reveals a lot--pick one domain concept and answer three q
 
 If those answers point to different places, you have drift.
 
-## CLEAR in Practice: Real Example
+### **[E] Ephemeral** - Stop Editing Generated Code You or AI Could Regenerate
 
-Let me show you all five CLEAR principles working together on a real project:
+Here's the workflow that's working: Set up your boundaries once using skills and rules files at the repository level. Then leverage AI to create all the boilerplate that adheres to those boundaries.
+
+Example - keeping Python backend and TypeScript frontend types in sync:
+
+```markdown
+When defining shared data structures:
+
+Backend (Python):
+- Use Pydantic v2 models with Field() for validation
+- CamelCase for class names, snake_case for fields
+- Include model_config with json_schema_extra for TS mapping
+- Add docstrings that will become TS comments
+
+Frontend (TypeScript):
+- Generate matching TS interfaces in src/types/api/
+- Use camelCase for property names (snake_case → camelCase conversion)
+- Include the same validation rules as Zod schemas
+- Preserve comments from Python docstrings
+
+Example mapping:
+Python: user_id: str = Field(min_length=1)
+TypeScript: userId: string  // + Zod: z.string().min(1)
+
+All shared types must be defined in backend/models/api/
+and have corresponding generated TS in frontend/src/types/api/
+
+When I update a Python model, remind me to regenerate the TS types.
+```
+
+Now when I say "create a User model with email and subscription status", the agent generates:
+
+Backend:
+```python
+class User(BaseModel):
+    """User account information"""
+    user_id: str = Field(min_length=1, description="Unique user identifier")
+    email: EmailStr = Field(description="User email address")
+    subscription_status: Literal["free", "premium", "enterprise"]
+    
+    model_config = ConfigDict(json_schema_extra={"ts_interface": "User"})
+```
+
+Frontend:
+```typescript
+/** User account information */
+export interface User {
+  /** Unique user identifier */
+  userId: string;
+  /** User email address */
+  email: string;
+  subscriptionStatus: "free" | "premium" | "enterprise";
+}
+
+export const UserSchema = z.object({
+  userId: z.string().min(1),
+  email: z.string().email(),
+  subscriptionStatus: z.enum(["free", "premium", "enterprise"]),
+});
+```
+
+The first time you write the rules file takes work. Every subsequent model follows those rules automatically. When you add a field to User in Python, you ask AI to regenerate the TypeScript types - it reads the rules and keeps everything in sync.
+
+The AI isn't running a build script - it's reading your constraints and generating code that respects them across both languages. That's way more powerful than traditional code generation because the AI understands the meaning, not just the syntax.
+
+## CLARE in Practice: Real Example
+
+Let me show you all five CLARE principles working together on a real project:
 
 We had a collection of protobuf APIs that were constantly evolving - new APIs added, models tweaked, parameters adjusted. We needed a utility to validate the latest version of the APIs, see what the services were returning, and visualize them in a way that made testing easy.
 
@@ -423,7 +423,7 @@ We had a collection of protobuf APIs that were constantly evolving - new APIs ad
 - Manual test building for each new field or endpoint
 - Days or weeks per iteration
 
-**New way with CLEAR:**
+**New way with CLARE:**
 
 **[C] Constrained** - Define the boundary:
 ```
@@ -523,7 +523,7 @@ There's a methodology called BMad (Breakthrough Method for Agile AI-Driven Devel
 
 It works. The problem is the agents can still generate code that violates your architecture even while following the workflow perfectly.
 
-That's where CLEAR matters. Multi-agent workflows give you process structure. CLEAR gives you the architectural guardrails. The same applies to any orchestrated pipeline: Claude Code agents, Cursor Composer, GitHub Copilot Workspace, LangGraph, CrewAI — the framework doesn't matter. Without enforced constraints, every agent is a potential source of architectural drift.
+That's where CLARE matters. Multi-agent workflows give you process structure. CLARE gives you the architectural guardrails. The same applies to any orchestrated pipeline: Claude Code agents, Cursor Composer, GitHub Copilot Workspace, LangGraph, CrewAI — the framework doesn't matter. Without enforced constraints, every agent is a potential source of architectural drift.
 
 Together: structured agents that can't break your design rules even if they try.
 
@@ -541,7 +541,7 @@ Don't boil the ocean. Pick one thing this week:
 
 One experiment. One week. See what actually happens.
 
-Want to see a complete working example? Check out the CLEAR bootstrap project at https://github.com/jketreno/clear for templates and implementations of all five principles.
+Want to see a complete working example? Check out the CLARE bootstrap project at https://github.com/jketreno/clare for templates and implementations of all five principles.
 
 ## What I'm Seeing Work
 
@@ -581,14 +581,14 @@ AI generating 40% of global code isn't a future prediction - it's happening righ
 
 The question is whether your architecture survives contact with them.
 
-Traditional approaches optimized for humans reading code. CLEAR principles optimize for machines generating verifiable code while keeping humans in strategic control.
+Traditional approaches optimized for humans reading code. CLARE principles optimize for machines generating verifiable code while keeping humans in strategic control.
 
-Your current practices + CLEAR guardrails + AI building both = you keep your architecture while gaining velocity.
+Your current practices + CLARE guardrails + AI building both = you keep your architecture while gaining velocity.
 
 ---
 
-One last thing worth saying: this article was written using CLEAR principles. I gave Claude precise constraints (write like James would, based on my own writing samples), clear boundaries (long-form technical article, not marketing copy), and verification criteria (does it sound like me? does every claim match what I actually observed?). I reviewed it, iterated on it, and cut what didn't hold up. The relationship between constraint-giver and generator is exactly what CLEAR describes — and it worked here the same way it works in code.
+One last thing worth saying: this article was written using CLARE principles. I gave Claude precise constraints (write like James would, based on my own writing samples), clear boundaries (long-form technical article, not marketing copy), and verification criteria (does it sound like me? does every claim match what I actually observed?). I reviewed it, iterated on it, and cut what didn't hold up. The relationship between constraint-giver and generator is exactly what CLARE describes — and it worked here the same way it works in code.
 
-The acronym came from the same process. I gave an LLM my tenets, it gave me CLEAR. That's not a confession. That's the point.
+The acronym came from the same process. I gave an LLM my tenets, it gave me CLARE. That's not a confession. That's the point.
 
 What's your most annoying code review comment? That's probably your first constraint. Ask AI to turn it into a test and add it to your verify script.

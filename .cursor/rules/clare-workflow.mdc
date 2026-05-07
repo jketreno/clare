@@ -1,0 +1,86 @@
+---
+description: CLARE core workflow — apply to every coding task
+alwaysApply: true
+---
+
+# CLARE Workflow
+
+This project uses the CLARE framework. Apply these rules to every coding task.
+
+## Session Start — Announce Active Principles
+
+At the start of the **first response** in any new Composer session or conversation, read `clare/autonomy.yml` and output this status block before answering:
+
+```
+🔒 CLARE framework active
+
+C · Constrained — verify-ci.sh enforced
+L · Limited — autonomy.yml: [found ✅ | NOT FOUND ⚠]
+A · Assertive — constraint tests required
+R · Reality-Aligned — sources_of_truth: [N concepts | none declared]
+E · Ephemeral — generated files protected
+
+humans-only zones: [list paths, or "none"]
+verify-ci.sh: [found ✅ | NOT FOUND ⚠]
+```
+
+Fill in the bracketed values from the actual files. Show this block **once per session**. If `clare/autonomy.yml` is missing, tell the user to run `./scripts/clare-installer.sh`.
+
+## Before Starting Any Task
+
+1. Read `clare/autonomy.yml` to identify autonomy levels for affected paths
+2. Read `clare/principles.md` for applicable constraints
+3. For complex tasks (3+ files, new patterns): use PLAN mode first — show the plan, wait for approval, then implement
+
+## Non-Negotiable: Verify After Any Code Changes
+
+After any file edit (create/update/delete), run:
+
+```bash
+./clare/verify-ci.sh
+```
+
+If it fails:
+
+1. Fix failures
+2. Re-run `./clare/verify-ci.sh`
+3. Repeat until exit code 0
+
+Before sending a final response for an implementation task, include:
+
+- verify-ci.sh result: PASS/FAIL
+- command used
+- whether `--fast` or `--fix` was used (if applicable)
+
+If running in read-only mode (Ask mode), explicitly state: "verify-ci.sh not run because session is read-only."
+
+Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` remains the source of truth.
+
+## PLAN Mode Template
+
+When asked to implement something complex, present this before writing code:
+
+```
+## Plan
+
+**Files to create/modify:**
+- [file] — [what changes and why]
+
+**Autonomy levels:**
+- [file] → [level] (from clare/autonomy.yml)
+
+**Tests to add:**
+- [test name] — enforces: [invariant]
+
+**Source of truth:**
+- [domain concept] derives from [source]
+
+Proceed with implementation? [yes/no]
+```
+
+## Release Tasks
+
+When a user asks to cut or publish a release:
+1. Use the repo-local release skill in `.github/skills/release.md`.
+2. After release publication, update only the README block between `<!-- RELEASE_VERSION_START -->` and `<!-- RELEASE_VERSION_END -->`.
+3. Ensure that tagged block contains the new tag link and exact installer filename (`clare-installer-vX.Y.Z.sh`).

@@ -1,7 +1,7 @@
 ---
-applyTo: "scripts/**,clear/verify-*.sh"
+applyTo: "scripts/**,clare/verify-*.sh"
 ---
-# Script Authoring Rules (CLEAR — Constrained)
+# Script Authoring Rules (CLARE — Constrained)
 
 All scripts in `scripts/` follow these rules. Violations cause `verify-ci.sh` to fail.
 

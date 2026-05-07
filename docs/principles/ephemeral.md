@@ -38,7 +38,7 @@ A file is generated (and should never be hand-edited) if:
 
 2. Its path is in a generated directory: `src/generated/`, `__generated__/`, `gen/`
 
-3. Its path has `full-autonomy` in `clear/autonomy.yml` for a generation reason
+3. Its path has `full-autonomy` in `clare/autonomy.yml` for a generation reason
 
 ---
 
@@ -68,7 +68,7 @@ The key artifact is a **skill file** — a document that tells your AI exactly h
 - ...
 ```
 
-See `clear/examples/skills/` for complete examples:
+See `clare/examples/skills/` for complete examples:
 - `type-sync.md` — Python Pydantic → TypeScript interfaces + Zod schemas
 - `proto-visualization.md` — Protobuf → React components
 - `api-endpoint.md` — Feature request → endpoint with tests and docs
@@ -108,7 +108,7 @@ globs: ["backend/models/**"]
 Source: backend/models/api/user.py (Python Pydantic model)
 Output: frontend/src/types/api/user.ts (TypeScript interface)
         frontend/src/types/schemas/user.ts (Zod schema)
-Skill:  clear/examples/skills/type-sync.md
+Skill:  clare/examples/skills/type-sync.md
 ```
 
 **Trigger:** Python model changes  
@@ -121,7 +121,7 @@ Skill:  clear/examples/skills/type-sync.md
 Source: proto/services/*.proto (protobuf definitions)
 Output: src/components/proto/**/*.tsx (React components)
         src/types/proto/*.ts (TypeScript types)
-Skill:  clear/examples/skills/proto-visualization.md
+Skill:  clare/examples/skills/proto-visualization.md
 ```
 
 **Trigger:** Proto files change  
@@ -133,7 +133,7 @@ Skill:  clear/examples/skills/proto-visualization.md
 ```
 Source: openapi.yml (API specification)
 Output: tests/mocks/api/*.ts (mock handlers)
-Skill:  [create your own based on clear/templates/skills/]
+Skill:  [create your own based on clare/templates/skills/]
 ```
 
 ---

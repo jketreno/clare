@@ -15,7 +15,7 @@
     "*.mdc": "markdown"
   },
   "yaml.schemas": {
-    "./.vscode/autonomy-schema.json": ["clear/autonomy.yml"]
+    "./.vscode/autonomy-schema.json": ["clare/autonomy.yml"]
   },
   "[yaml]": {
     "editor.defaultFormatter": "redhat.vscode-yaml"

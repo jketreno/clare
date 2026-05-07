@@ -40,7 +40,7 @@ If the IAM provider says a user's admin role was revoked but your local DB still
 
 ## Declaring Sources of Truth
 
-In `clear/autonomy.yml`, add a `sources_of_truth` section:
+In `clare/autonomy.yml`, add a `sources_of_truth` section:
 
 ```yaml
 sources_of_truth:
@@ -87,7 +87,7 @@ Reality tests verify that your local implementation actually matches the externa
 - Guard with `if (NODE_ENV !== 'staging') throw` to prevent production data access
 - Compare normalized representations (timestamps, sorted arrays, etc.)
 
-See `clear/examples/skills/reality-test.md` for complete examples for OAuth/IAM and database schemas.
+See `clare/examples/skills/reality-test.md` for complete examples for OAuth/IAM and database schemas.
 
 **Where to put them:**
 ```
@@ -166,7 +166,7 @@ test('API response matches declared OpenAPI schema', async () => {
 Ask your AI to run the three-question diagnostic on a domain concept:
 
 ```
-Run the CLEAR reality-alignment diagnostic on our User Permissions model:
+Run the CLARE reality-alignment diagnostic on our User Permissions model:
 1. Find where user permissions are defined in our codebase
 2. Find where permission data is validated
 3. Find where permissions are actually enforced (IAM provider? local DB? middleware?)
@@ -181,7 +181,7 @@ The AI will surface mismatches you might not have noticed.
 
 ## When Systems Conflict
 
-Add explicit conflict-resolution rules to `clear/autonomy.yml`:
+Add explicit conflict-resolution rules to `clare/autonomy.yml`:
 
 ```yaml
 sources_of_truth:
@@ -204,7 +204,7 @@ Pick ONE domain concept this week:
 
 1. Name it (User, Order, Subscription, Permission, Product)
 2. Answer the three questions (defined where, validated where, enforced where)
-3. Declare the source of truth in `clear/autonomy.yml`
+3. Declare the source of truth in `clare/autonomy.yml`
 4. Write one reality test that would fail if drift occurs
 5. Add that test to your nightly CI
 

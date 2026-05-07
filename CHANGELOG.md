@@ -6,8 +6,8 @@ All notable user-facing changes to this project are documented in this file.
 
 ### Added
 
-- **`--update` flag for installer:** Updating an existing CLEAR installation now requires `--update` explicitly. Running without it on an already-installed project errors and tells you exactly what to run. Per-file prompting on update: each changed file shows a `[U]pdate / (d)iff / (s)kip / (a)bort` prompt.
-- **Codex support:** CLEAR installer now supports OpenAI Codex as an AI tool target alongside Claude, Cursor, and Copilot.
+- **`--update` flag for installer:** Updating an existing CLARE installation now requires `--update` explicitly. Running without it on an already-installed project errors and tells you exactly what to run. Per-file prompting on update: each changed file shows a `[U]pdate / (d)iff / (s)kip / (a)bort` prompt.
+- **Codex support:** CLARE installer now supports OpenAI Codex as an AI tool target alongside Claude, Cursor, and Copilot.
 - **Untracked file scanning in verify-ci.sh:** Architecture and autonomy checks now include untracked files by default. Use `--exclude-untracked` to limit scans to tracked files only.
 - **Pre-publish notes preview:** Release script now shows a preview of release notes before publishing and offers an edit step.
 
@@ -17,16 +17,16 @@ All notable user-facing changes to this project are documented in this file.
 - **Installer robustness:** Guards against missing TTY for interactive prompts, requires a git repository target, escapes extension names in sed selectors, and protects against `mktemp` failures.
 - **Release script hardening:** Rejects detached HEAD before publishing, tighter semantic version validation, documented exit code meanings and break-glass flag implications.
 - **Template and skill improvements:** Stronger autonomy guard parsing, clearer humans-only path selection guidance, expanded autonomy-bootstrap examples, and modernized MCP Python skill registration.
-- **Documentation accuracy:** Fixed `--update` flag omission in README and getting-started guide, added 60-second CLEAR overview, clarified template boundaries and breaking-change process.
+- **Documentation accuracy:** Fixed `--update` flag omission in README and getting-started guide, added 60-second CLARE overview, clarified template boundaries and breaking-change process.
 
 ## v1.1.0 - 2026-04-21
 
 ### Changed
 
-- **Namespace consolidation:** All installed files now live under `clear/` instead of scattered across `scripts/` and `templates/`. This prevents collisions with existing project directories.
-  - `scripts/verify-ci.sh` → `clear/verify-ci.sh`
-  - `scripts/verify-local.sh` → `clear/verify-local.sh`
-  - `templates/` → `clear/templates/`, `clear/examples/`, `clear/docs/`
+- **Namespace consolidation:** All installed files now live under `clare/` instead of scattered across `scripts/` and `templates/`. This prevents collisions with existing project directories.
+  - `scripts/verify-ci.sh` → `clare/verify-ci.sh`
+  - `scripts/verify-local.sh` → `clare/verify-local.sh`
+  - `templates/` → `clare/templates/`, `clare/examples/`, `clare/docs/`
 - Templates, examples, and documentation are now installed into target projects so all config file references resolve to actual files.
 - Unified installer now uses `install/` source layout that maps 1:1 to what gets installed.
 - Setup wizard and installer behavior improvements: tighter verification rules, generic autonomy template, and better nested file handling.
@@ -38,9 +38,9 @@ Initial public release prepared from repository history (no prior release tags f
 
 ### Added
 
-- CLEAR framework foundation with the five principles: Constrained, Limited, Ephemeral, Assertive, and Reality-Aligned.
+- CLARE framework foundation with the five principles: Constrained, Limited, Assertive, Reality-Aligned, and Ephemeral.
 - Bootstrap and setup workflow for existing projects with autonomy boundaries and source-of-truth onboarding.
-- Unified install and update path via the CLEAR installer.
+- Unified install and update path via the CLARE installer.
 - Local CI enforcement script (`scripts/verify-ci.sh`) plus project-owned extension points (`scripts/verify-local.sh`).
 - Optional extension system and interactive extension setup support.
 - Generic and example AI skills, including release prep and autonomy bootstrap guidance.
