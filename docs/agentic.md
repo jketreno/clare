@@ -6,7 +6,7 @@
 
 ## The Multi-Agent Problem
 
-Single-session AI tools (Claude Code, Cursor, Copilot) load your CLAUDE.md or rule files at startup and carry context throughout the session. Multi-agent pipelines are different:
+Single-session AI tools (Claude Code, Cursor, Copilot, Codex) load your AGENTS.md, CLAUDE.md, or rule files at startup and carry context throughout the session. Multi-agent pipelines are different:
 
 - **Orchestrators** spawn sub-agents that may not share session context
 - **Parallel agents** modify code concurrently — autonomy violations become race conditions
@@ -128,7 +128,7 @@ Do not report the task as complete until all checks pass.
 If the script fails, fix the errors and run again.
 ```
 
-This is provider-agnostic. It works whether the sub-agent is Claude, GPT-4, a local model, or a scripted tool.
+This is provider-agnostic. It works whether the sub-agent is Claude, Codex, GPT-4, a local model, or a scripted tool.
 
 ### CI/CD as the final backstop
 
@@ -262,7 +262,7 @@ This turns CLARE enforcement from a human responsibility into an automated gate.
 
 CLARE is an architectural guardrail, not a coordination protocol. It does not:
 
-- **Manage agent communication** — use a proper orchestration framework (LangGraph, CrewAI, Claude Agents SDK) for that
+- **Manage agent communication** — use a proper orchestration framework (LangGraph, CrewAI, Claude Agents SDK, Codex workflows) for that
 - **Prevent conflicting concurrent writes** — handle file locking or task partitioning at the orchestrator level
 - **Replace integration tests** — `verify-ci.sh` runs unit/architecture tests locally; full integration tests still need a real environment
 - **Audit which agent made which change** — use `git blame` and commit messages for attribution; structure agent commits with clear messages
@@ -292,4 +292,5 @@ CLARE's job is to ensure that whatever any agent generates, it passes your archi
 | Writing constraint tests for agentic code | [docs/principles/assertive.md](principles/assertive.md) |
 | Generated code workflows | [docs/principles/ephemeral.md](principles/ephemeral.md) |
 | Claude Code + MCP setup | [docs/ai-tools/claude.md](ai-tools/claude.md) |
+| Codex setup | [docs/ai-tools/codex.md](ai-tools/codex.md) |
 | MCP server skill template | [clare/templates/skills/mcp-server.md](../install/clare/templates/skills/mcp-server.md) |

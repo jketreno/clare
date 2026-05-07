@@ -50,7 +50,7 @@ Initial public release prepared from repository history (no prior release tags f
 
 - Installer and release guidance now include explicit artifact/key download and signature verification instructions before execution.
 - Release prep workflow now enforces docs/code accuracy checks and manual publish handoff due GPG passphrase entry.
-- Setup wizard skill messaging updated for tool-agnostic assistant usage (Cursor, Copilot Chat, Claude, etc.).
+- Setup wizard skill messaging updated for tool-agnostic assistant usage (Cursor, Copilot Chat, Claude, Codex, etc.).
 - Project structure split between generic templates and domain-specific examples for safer adoption.
 
 ### Fixed

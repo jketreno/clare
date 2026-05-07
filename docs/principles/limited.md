@@ -100,6 +100,7 @@ The AI tools in this project are configured to check `clare/autonomy.yml` before
 - **Copilot:** `.github/copilot-instructions.md` instructs it to check autonomy.yml
 - **Claude:** `CLAUDE.md` and `.claude/commands/check-autonomy.md` provide explicit instructions
 - **Cursor:** `.cursor/rules/clare-limited.mdc` with `alwaysApply: true`
+- **Codex:** `AGENTS.md` instructs it to check autonomy.yml before edits
 
 ### Architecture test enforcement (CI)
 

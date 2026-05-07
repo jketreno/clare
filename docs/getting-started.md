@@ -9,7 +9,7 @@
 
 - Git
 - bash (Linux, macOS, or WSL on Windows)
-- Your AI tool: VS Code + GitHub Copilot, Claude Code, or Cursor
+- Your AI tool: VS Code + GitHub Copilot, Claude Code, Cursor, or Codex
 
 ---
 
@@ -32,6 +32,7 @@ docs/             — this documentation
 .cursor/rules/    — Cursor AI rules
 .claude/          — Claude Code commands
 CLAUDE.md         — Claude Code root config
+AGENTS.md         — Codex root config
 ```
 
 ---
@@ -167,6 +168,17 @@ Rules applied automatically:
 
 See [docs/ai-tools/cursor.md](ai-tools/cursor.md) for full setup.
 
+### Codex
+
+The `AGENTS.md` file in your project root is auto-read by Codex at session start.
+
+Codex should:
+- Read `clare/autonomy.yml` before modifying files
+- Follow `clare/principles.md`
+- Run `./clare/verify-ci.sh` before reporting implementation work complete
+
+See [docs/ai-tools/codex.md](ai-tools/codex.md) for full setup.
+
 ---
 
 ## Step 5: Your First Experiment
@@ -242,6 +254,7 @@ run_check "Architecture tests" "cd '$PROJECT_ROOT' && npx jest tests/architectur
 | VS Code / Copilot setup details | [docs/ai-tools/vscode-copilot.md](ai-tools/vscode-copilot.md) |
 | Claude Code setup details | [docs/ai-tools/claude.md](ai-tools/claude.md) |
 | Cursor setup details | [docs/ai-tools/cursor.md](ai-tools/cursor.md) |
+| Codex setup details | [docs/ai-tools/codex.md](ai-tools/codex.md) |
 | Multi-agent pipelines & MCP | [docs/agentic.md](agentic.md) |
 
 ---

@@ -108,6 +108,7 @@ See [docs/agentic.md](../docs/agentic.md) for full patterns and the `clare/templ
 | `clare/templates/github-actions/` | CI/CD workflow templates |
 | `clare/templates/linting/` | ESLint config templates |
 | `clare/docs/agentic.md` | Multi-agent pipelines and MCP integration guide |
+| `AGENTS.md` | Codex configuration (auto-read at startup) |
 | `.github/copilot-instructions.md` | GitHub Copilot / VS Code workspace config |
 | `CLAUDE.md` | Claude Code configuration (auto-read at startup) |
 | `.cursor/rules/` | Cursor AI rules (MDC format) |

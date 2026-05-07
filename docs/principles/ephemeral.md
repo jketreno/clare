@@ -100,6 +100,14 @@ globs: ["backend/models/**"]
 
 ---
 
+**Codex:** Add the skill under `.codex/skills/[skill-name]/SKILL.md` or reference it from `AGENTS.md`:
+
+```markdown
+Follow .codex/skills/type-sync/SKILL.md when regenerating API types.
+```
+
+---
+
 ## The Regeneration Pattern in Practice
 
 ### Python → TypeScript Sync

@@ -6,6 +6,7 @@
 #   VS Code/Copilot: .github/instructions/type-sync.instructions.md
 #   Claude:          CLAUDE.md (paste the content) or .claude/commands/type-sync.md
 #   Cursor:          .cursor/rules/type-sync.mdc
+#   Codex:           .codex/skills/type-sync/SKILL.md or AGENTS.md
 #
 # This skill tells your AI exactly how to keep Python and TypeScript types in sync.
 # The Python Pydantic models are the SOURCE OF TRUTH.

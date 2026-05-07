@@ -6,7 +6,7 @@ Here's what I'm seeing across teams:
 
 You've spent years building up good design practices. Your team knows the patterns. Everyone understands how things should be structured. Code reviews enforce the standards you've fought to establish.
 
-Then you add Cursor, Copilot, or Claude to the mix, and suddenly you're generating code at 10x speed. Which sounds great until you realize the AI is creating technical debt faster than you can review it. Code that works but doesn't fit your patterns. Implementations that pass tests but violate the principles your team has relied on for years. Changes that would have taken weeks of mentoring a junior dev to understand are now happening in every AI-generated PR.
+Then you add Cursor, Copilot, Claude, or Codex to the mix, and suddenly you're generating code at 10x speed. Which sounds great until you realize the AI is creating technical debt faster than you can review it. Code that works but doesn't fit your patterns. Implementations that pass tests but violate the principles your team has relied on for years. Changes that would have taken weeks of mentoring a junior dev to understand are now happening in every AI-generated PR.
 
 The problem isn't the AI. The problem is your architecture rules exist in people's heads and code review comments. LLMs can't read your mind.
 
@@ -523,7 +523,7 @@ There's a methodology called BMad (Breakthrough Method for Agile AI-Driven Devel
 
 It works. The problem is the agents can still generate code that violates your architecture even while following the workflow perfectly.
 
-That's where CLARE matters. Multi-agent workflows give you process structure. CLARE gives you the architectural guardrails. The same applies to any orchestrated pipeline: Claude Code agents, Cursor Composer, GitHub Copilot Workspace, LangGraph, CrewAI — the framework doesn't matter. Without enforced constraints, every agent is a potential source of architectural drift.
+That's where CLARE matters. Multi-agent workflows give you process structure. CLARE gives you the architectural guardrails. The same applies to any orchestrated pipeline: Claude Code agents, Codex, Cursor Composer, GitHub Copilot Workspace, LangGraph, CrewAI — the framework doesn't matter. Without enforced constraints, every agent is a potential source of architectural drift.
 
 Together: structured agents that can't break your design rules even if they try.
 

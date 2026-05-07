@@ -18,7 +18,7 @@ Your architecture rules live in code reviews and tribal knowledge. AI can't read
 
 CLARE fixes this: define your rules as automated checks, tell the AI to run them before finishing, and let it self-correct. The AI generates code, runs `verify-ci.sh`, sees the failure, fixes it, and reports done — you never see the violation.
 
-Works with GitHub Copilot, Claude Code, Cursor, and MCP-compatible agent frameworks.
+Works with GitHub Copilot, Claude Code, Cursor, Codex, and MCP-compatible agent frameworks.
 
 Want to know the thought process that led to CLARE's design? Read the [origin story](ORIGIN.md).
 
@@ -27,7 +27,7 @@ Want to know the thought process that led to CLARE's design? Read the [origin st
 ## CLARE in 60 seconds
 
 1. Install CLARE into your repo with one script.
-2. AI tools read CLARE rules (`CLAUDE.md`, `.github/*`, `.cursor/rules/*`) automatically, honoring AI editing limits.
+2. AI tools read CLARE rules (`AGENTS.md`, `CLAUDE.md`, `.github/*`, `.cursor/rules/*`) automatically, honoring AI editing limits.
 3. Before claiming work is done, AI must run `./clare/verify-ci.sh`.
 4. If checks fail, AI fixes and reruns until all pass.
 5. You review constraints and architecture, not repetitive implementation mistakes.
@@ -52,7 +52,7 @@ This copies CLARE's scripts, AI tool configs, and templates into your project. I
 
 It then runs the setup wizard, which uses a hybrid flow: it can install a safe starter `clare/autonomy.yml`
 and guide you to run the `autonomy-bootstrap` skill from your AI assistant
-(Cursor, Copilot Chat, Claude, etc.) to generate project-specific boundaries and sources of truth.
+(Cursor, Copilot Chat, Claude, Codex, etc.) to generate project-specific boundaries and sources of truth.
 Manual prompts for boundaries/concepts are still available as a fallback.
 
 ### 2 — See it work
@@ -69,7 +69,7 @@ Open `clare/autonomy.yml` and review module levels (`full-autonomy`, `supervised
 
 ### 4 — Add your first constraint
 
-Open your AI tool (Copilot, Claude Code, Cursor) in your project. It automatically reads the CLARE config files installed in step 1. Paste this:
+Open your AI tool (Copilot, Claude Code, Cursor, Codex) in your project. It automatically reads the CLARE config files installed in step 1. Paste this:
 
 ```
 Analyze this codebase and identify the build tools, linters, test frameworks,
@@ -102,7 +102,7 @@ From now on, AI self-corrects against that rule before saying "done." You review
 flowchart TD
     DEV([Developer]) -->|"request"| AI
 
-    subgraph AI["AI Tool (Copilot · Claude · Cursor)"]
+    subgraph AI["AI Tool (Copilot · Claude · Cursor · Codex)"]
         direction TB
         CFG["Reads CLARE config at session start<br/>.github/copilot-instructions.md<br/>CLAUDE.md · .cursor/rules/"]
         AUT["Checks clare/autonomy.yml<br/>before touching any file"]
@@ -160,6 +160,7 @@ clare/
   examples/             — Domain-specific examples (available separately)
   docs/                 — Agentic workflows & MCP integration guide
 
+AGENTS.md              — Codex config (auto-read at session start)
 CLAUDE.md              — Claude Code config (auto-read at session start)
 .github/               — GitHub Copilot instruction files
 .cursor/rules/         — Cursor MDC rule files
@@ -220,5 +221,6 @@ Use `--update` when re-running against a project that already has CLARE installe
 | VS Code / Copilot setup | [docs/ai-tools/vscode-copilot.md](docs/ai-tools/vscode-copilot.md) |
 | Claude Code setup | [docs/ai-tools/claude.md](docs/ai-tools/claude.md) |
 | Cursor setup | [docs/ai-tools/cursor.md](docs/ai-tools/cursor.md) |
+| Codex setup | [docs/ai-tools/codex.md](docs/ai-tools/codex.md) |
 | Agentic workflows & MCP | [docs/agentic.md](docs/agentic.md) |
 | Contributing | [DEVELOPERS.md](DEVELOPERS.md) |
