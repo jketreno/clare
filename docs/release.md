@@ -77,10 +77,16 @@ sha256sum -c clare-installer-vX.Y.Z.sha256
 
 Do not run the installer unless verification succeeds.
 
-Install or update from one entrypoint:
+Install into a project:
 
 ```bash
 bash clare-installer-vX.Y.Z.sh --target /path/to/repo
+```
+
+Update an existing CLARE installation:
+
+```bash
+bash clare-installer-vX.Y.Z.sh --update --target /path/to/repo
 ```
 
 Extract payload for inspection:

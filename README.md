@@ -39,12 +39,12 @@ Want to know the thought process that led to CLARE's design? Read the [origin st
 ### 1 — Install CLARE into your project
 
 <!-- RELEASE_VERSION_START -->
-**Latest release: [v1.2.0](https://github.com/jketreno/clare/releases/tag/v1.2.0)**
+**Latest release: [v1.3.0](https://github.com/jketreno/clare/releases/tag/v1.3.0)**
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clare/releases/download/v1.2.0/clare-installer-v1.2.0.sh
-chmod +x ./clare-installer-v1.2.0.sh
-./clare-installer-v1.2.0.sh --target /path/to/your-project
+curl -fsSLO https://github.com/jketreno/clare/releases/download/v1.3.0/clare-installer-v1.3.0.sh
+chmod +x ./clare-installer-v1.3.0.sh
+./clare-installer-v1.3.0.sh --target /path/to/your-project
 ```
 <!-- RELEASE_VERSION_END -->
 
@@ -183,7 +183,7 @@ When a new version is released, run the installer again against the same project
 
 ```bash
 curl -fsSLO https://github.com/jketreno/clare/releases/download/vX.Y.Z/clare-installer-vX.Y.Z.sh
-bash clare-installer-vX.Y.Z.sh --target /path/to/your-project
+bash clare-installer-vX.Y.Z.sh --update --target /path/to/your-project
 ```
 
 CLARE-owned files (`verify-ci.sh`, AI configs, `principles.md`) are updated. Your files (`verify-local.sh`, `autonomy.yml`, `extensions.yml`) are never overwritten.
