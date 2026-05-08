@@ -25,7 +25,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_SELF="${BASH_SOURCE:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SELF")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FAST_MODE=false
 FIX_MODE=false

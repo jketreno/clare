@@ -15,27 +15,28 @@ set -euo pipefail
 section "Shell Script Compliance"
 
 collect_shell_files() {
-  local -n out_ref=$1
-  out_ref=()
+  local out_ref="$1"
+  eval "$out_ref=()"
 
   if command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     while IFS= read -r rel_path; do
       [[ -z "$rel_path" ]] && continue
       [[ -f "$PROJECT_ROOT/$rel_path" ]] || continue
-      out_ref+=("$rel_path")
+      eval "$out_ref+=(\"$rel_path\")"
     done < <(cd "$PROJECT_ROOT" && git ls-files '*.sh')
     return 0
   fi
 
   while IFS= read -r abs_path; do
     [[ -z "$abs_path" ]] && continue
-    out_ref+=("${abs_path#"$PROJECT_ROOT/"}")
+    local rel_path="${abs_path#"$PROJECT_ROOT/"}"
+    eval "$out_ref+=(\"$rel_path\")"
   done < <(find "$PROJECT_ROOT" -type f -name '*.sh' -print)
 }
 
 collect_humans_only_paths() {
-  local -n out_ref=$1
-  out_ref=()
+  local out_ref="$1"
+  eval "$out_ref=()"
 
   local autonomy_file
   autonomy_file="$PROJECT_ROOT/clare/autonomy.yml"
@@ -43,14 +44,14 @@ collect_humans_only_paths() {
 
   if command -v yq >/dev/null 2>&1; then
     while IFS= read -r path_rule; do
-      [[ -n "$path_rule" ]] && out_ref+=("$path_rule")
+      [[ -n "$path_rule" ]] && eval "$out_ref+=(\"$path_rule\")"
     done < <(yq -r '.modules[]? | select(.level == "humans-only") | .path // empty' "$autonomy_file" 2>/dev/null || true)
     return 0
   fi
 
   if command -v python3 >/dev/null 2>&1; then
     while IFS= read -r path_rule; do
-      [[ -n "$path_rule" ]] && out_ref+=("$path_rule")
+      [[ -n "$path_rule" ]] && eval "$out_ref+=(\"$path_rule\")"
     done < <(
       python3 - "$autonomy_file" <<'PY' 2>/dev/null || true
 import sys

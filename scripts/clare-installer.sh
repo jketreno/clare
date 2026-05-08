@@ -21,7 +21,8 @@ EXIT_RUNTIME=4
 EXIT_EXTRACT=5
 EXIT_ABORT=6
 
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+SCRIPT_SELF="${BASH_SOURCE:-$0}"
+SCRIPT_PATH="$(cd "$(dirname "$SCRIPT_SELF")" && pwd)/$(basename "$SCRIPT_SELF")"
 
 TARGET_DIR=""
 DRY_RUN=false
@@ -545,7 +546,17 @@ run_setup_flow() {
   install_skills_from_arrays() {
     local label="$1"
     shift
-    local -n _files=$1 _names=$2 _descs=$3
+    local files_ref="$1"
+    local names_ref="$2"
+    local descs_ref="$3"
+    local -a _files=()
+    local -a _names=()
+    local -a _descs=()
+
+    # Populate local copies of the referenced arrays without Bash namerefs.
+    eval '_files=("${'"$files_ref"'[@]}")'
+    eval '_names=("${'"$names_ref"'[@]}")'
+    eval '_descs=("${'"$descs_ref"'[@]}")'
 
     [[ ${#_files[@]} -gt 0 ]] || return 0
 
