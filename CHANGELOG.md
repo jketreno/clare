@@ -2,6 +2,20 @@
 
 All notable user-facing changes to this project are documented in this file.
 
+## v1.3.0 - 2026-05-08
+
+### Added
+
+- **Codex first-class support:** Added Codex configuration, agent instructions, and a review skill so Codex can follow CLARE autonomy and verification rules alongside Claude, Cursor, and Copilot.
+- **CLARE install payload refresh:** The installer now ships CLARE-namespaced templates, examples, architecture tests, linting configs, GitHub Actions, and AI-tool instructions under the `clare/` layout.
+- **CLARE branding assets:** Added the CLARE project image and renamed diagram/key references to match the CLARE namespace.
+
+### Changed
+
+- **Framework namespace renamed to CLARE:** Documentation, commands, rules, scripts, installer artifacts, release notes, and installed file paths now consistently use CLARE instead of CLEAR.
+- **AI tool documentation updated:** Claude, Cursor, Copilot, and Codex guidance now points at `clare/verify-ci.sh`, `clare/autonomy.yml`, and the current CLARE workflow.
+- **Release and installer naming aligned:** Release scripts now build and publish `clare-installer-vX.Y.Z` artifacts with CLARE signing-key documentation.
+
 ## v1.2.0 - 2026-05-05
 
 ### Added
