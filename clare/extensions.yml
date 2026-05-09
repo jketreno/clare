@@ -46,8 +46,13 @@ extensions:
   # where AI piles everything into a single component. No external tool
   # required; uses built-in line counting.
   #
-  # When a file exceeds the limit, verify-ci.sh fails with the file path
-  # and line count, so the AI knows exactly what to split.
+  # When a file exceeds the limit, treat it as a structural refactor trigger,
+  # not a line-shaving exercise. The recovery target is 90% of threshold
+  # (for threshold 300, recover to <= 270) by extracting smaller modules,
+  # reducing branching, and simplifying architecture.
+  #
+  # Do NOT resolve failures by deleting comments, collapsing whitespace, or
+  # compressing readable code into dense one-liners.
   #
   # For React projects: pair this with templates/linting/eslint-react.config.js
   # which adds per-function and nesting-depth limits via ESLint.
@@ -60,6 +65,8 @@ extensions:
     project_url: ""
     options:
       # Maximum lines per file (default: 300). Files over this limit fail.
+      # If a file exceeds this threshold, refactor to <= 90% of this value.
+      # Example: threshold 300 -> recovery target <= 270.
       # Recommended starting points:
       #   React/TSX components: 250
       #   TypeScript modules:   400

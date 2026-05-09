@@ -690,6 +690,7 @@ run_file_size_check() {
   local file_types="${3:-js ts tsx jsx}"
   local exclude_patterns="${4:-}"
   local count_comments="${5:-true}"
+  local refactor_target_lines=$((max_lines * 9 / 10))
   local effective_scan_paths="$scan_paths"
   local oversized_files=()
   local oversized_counts=()
@@ -737,7 +738,8 @@ run_file_size_check() {
       echo -e "${RED}   ${oversized_files[$i]}: ${oversized_counts[$i]} $count_label (max: $max_lines)${NC}"
     done
     echo ""
-    echo -e "${YELLOW}   Split large files into smaller, focused modules.${NC}"
+    echo -e "${YELLOW}   Refactor oversized files structurally to <= $refactor_target_lines $count_label (90% of threshold).${NC}"
+    echo -e "${YELLOW}   Use extraction/splitting/simplification; do not delete comments or whitespace to game line counts.${NC}"
     echo -e "${YELLOW}   Adjust the threshold in clare/extensions.yml if needed.${NC}"
     echo ""
   fi
