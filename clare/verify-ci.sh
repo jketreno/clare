@@ -376,19 +376,19 @@ check_lint() {
       local fix_flag=""
       $FIX_MODE && fix_flag="--fix"
 
-      if node -e "require('$PROJECT_ROOT/node_modules/.bin/eslint')" 2>/dev/null; then
+      if node -e "require.resolve('eslint/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
         run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag 2>&1" || true
       elif [[ -f "$PROJECT_ROOT/.eslintrc.js" || -f "$PROJECT_ROOT/.eslintrc.json" || -f "$PROJECT_ROOT/eslint.config.js" ]]; then
         warn "ESLint config found but ESLint not installed. Run: npm install"
       fi
 
-      if node -e "require('$PROJECT_ROOT/node_modules/.bin/prettier')" 2>/dev/null; then
+      if node -e "require.resolve('prettier/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
         local prettier_flag="--check"
         $FIX_MODE && prettier_flag="--write"
         run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag . 2>&1" || true
       fi
 
-      if node -e "require('$PROJECT_ROOT/node_modules/typescript')" 2>/dev/null; then
+      if node -e "require.resolve('typescript/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
         run_check "TypeScript (no-emit)" "cd '$PROJECT_ROOT' && npx tsc --noEmit 2>&1" || true
       fi
     fi
