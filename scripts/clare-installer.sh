@@ -35,6 +35,22 @@ SETUP_ONLY=false
 UPDATE=false
 WORK_DIR=""
 HAS_TTY=false
+TARGET_WAS_DIRTY=false
+
+readonly CLARE_RELATED_PATHS=(
+  "clare"
+  ".github/copilot-instructions.md"
+  ".github/instructions"
+  ".github/prompts"
+  ".cursor/rules"
+  ".claude/commands"
+  ".vscode/prompts"
+  ".codex/skills"
+  "CLAUDE.md"
+  "AGENTS.md"
+  ".cursorrules"
+  ".gitignore"
+)
 
 if [[ -t 0 && -t 1 ]]; then
   HAS_TTY=true
@@ -163,6 +179,105 @@ ensure_git_repo() {
     error "Target directory is not a git repository: $dir"
     error "Initialize git first (e.g., git init) and run installer again"
     return 1
+  fi
+}
+
+check_repo_dirty_state() {
+  local dir="$1"
+
+  if [[ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]]; then
+    TARGET_WAS_DIRTY=true
+  else
+    TARGET_WAS_DIRTY=false
+  fi
+}
+
+warn_if_repo_dirty_before_install() {
+  local dir="$1"
+
+  check_repo_dirty_state "$dir"
+
+  if [[ "$TARGET_WAS_DIRTY" == "true" ]]; then
+    warn "Target repository has existing changes."
+    warn "Recommended: commit or stash current changes before install/update so CLARE changes can be isolated in a single commit."
+
+    if [[ "$YES" == "true" ]]; then
+      warn "Continuing because --yes was provided."
+      return 0
+    fi
+
+    if ! $HAS_TTY; then
+      error "Refusing to continue with dirty working tree in non-interactive mode. Re-run with --yes to proceed."
+      return 1
+    fi
+
+    if ! ask_yn "Continue install/update with dirty working tree?" "n"; then
+      error "Aborted. Commit or stash changes, then re-run installer."
+      return 1
+    fi
+  fi
+
+  return 0
+}
+
+show_clare_related_diffstat() {
+  local dir="$1"
+  local has_changes=false
+  local diff_output untracked_output
+
+  diff_output="$(git -C "$dir" diff --stat -- "${CLARE_RELATED_PATHS[@]}" 2>/dev/null || true)"
+  if [[ -n "$diff_output" ]]; then
+    echo "$diff_output"
+    has_changes=true
+  fi
+
+  untracked_output="$(git -C "$dir" ls-files --others --exclude-standard -- "${CLARE_RELATED_PATHS[@]}" 2>/dev/null || true)"
+  if [[ -n "$untracked_output" ]]; then
+    while IFS= read -r rel_path; do
+      [[ -z "$rel_path" ]] && continue
+      printf " %s | 0\n" "$rel_path"
+    done <<<"$untracked_output"
+    has_changes=true
+  fi
+
+  if [[ "$has_changes" == "false" ]]; then
+    info "No CLARE-related working-tree changes detected."
+    return 1
+  fi
+
+  if [[ "$TARGET_WAS_DIRTY" == "true" ]]; then
+    warn "Diffstat may include CLARE-related changes that existed before this run."
+  fi
+
+  return 0
+}
+
+maybe_commit_clare_changes() {
+  local dir="$1"
+
+  header "CLARE Setup — Post-Install Review"
+  info "CLARE-related diffstat (working tree):"
+  echo ""
+
+  if ! show_clare_related_diffstat "$dir"; then
+    return 0
+  fi
+
+  echo ""
+  if ask_yn "Commit these CLARE-related changes now with message 'CLARE framework updated'?" "n"; then
+    git -C "$dir" add -- "${CLARE_RELATED_PATHS[@]}"
+    if git -C "$dir" diff --cached --quiet -- "${CLARE_RELATED_PATHS[@]}"; then
+      info "No staged CLARE-related changes to commit."
+      return 0
+    fi
+    if git -C "$dir" commit -m "CLARE framework updated"; then
+      success "Created commit: CLARE framework updated"
+    else
+      error "Failed to create commit. Review git status and commit manually."
+      return 1
+    fi
+  else
+    info "Skipped auto-commit."
   fi
 }
 
@@ -1103,6 +1218,7 @@ fi
 
 if [[ "$SETUP_ONLY" == "true" ]]; then
   ensure_git_repo "$TARGET_DIR" || exit "$EXIT_PREFLIGHT"
+  warn_if_repo_dirty_before_install "$TARGET_DIR" || exit "$EXIT_PREFLIGHT"
   setup_only_is_fresh="false"
   if has_legacy_clear_install "$TARGET_DIR" && ! has_clare_install "$TARGET_DIR"; then
     error "Legacy CLARE install detected at clear/. Run with --update before --setup-only."
@@ -1110,6 +1226,7 @@ if [[ "$SETUP_ONLY" == "true" ]]; then
   fi
   has_clare_install "$TARGET_DIR" || setup_only_is_fresh="true"
   run_setup_flow "$TARGET_DIR" "$SOURCE_ROOT" "$setup_only_is_fresh"
+  maybe_commit_clare_changes "$TARGET_DIR"
   echo "RESULT success mode=setup-only"
   exit 0
 fi
@@ -1120,6 +1237,7 @@ if [[ ! -d "$TARGET_DIR" ]]; then
 fi
 
 ensure_git_repo "$TARGET_DIR" || exit "$EXIT_PREFLIGHT"
+warn_if_repo_dirty_before_install "$TARGET_DIR" || exit "$EXIT_PREFLIGHT"
 
 is_fresh_install="false"
 has_current_install=false
@@ -1219,4 +1337,6 @@ if [[ "$RUN_SETUP" == "true" ]]; then
 else
   info "Setup wizard skipped (--no-setup)."
 fi
+
+maybe_commit_clare_changes "$TARGET_DIR"
 exit 0
