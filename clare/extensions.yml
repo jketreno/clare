@@ -92,7 +92,7 @@ extensions:
   # Project: https://github.com/shellspec/shellmetrics
   #
   - name: shellmetrics-complexity
-    enabled: false
+    enabled: true
     description: "Cyclomatic complexity analysis for Bash/shell scripts"
     command: "shellmetrics"
     install_hint: "curl -fsSL https://git.io/shellmetrics -o ~/bin/shellmetrics && chmod +x ~/bin/shellmetrics"
