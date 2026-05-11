@@ -11,6 +11,17 @@
 - bash (Linux, macOS, or WSL on Windows)
 - Your AI tool: VS Code + GitHub Copilot, Claude Code, Cursor, or Codex
 
+Windows note:
+
+- CLARE is Bash-first. Use WSL2 for the most reliable experience on Windows.
+- Native Windows shells may work with extra setup, but WSL is the recommended and tested path.
+
+Optional extension tooling:
+
+- If you enable optional complexity extensions in `clare/extensions.yml`, install the corresponding toolchain first (ESLint, golangci-lint, complexipy).
+- See the install matrix in [README.md](../README.md#optional-extension-tool-installs-macos--linux--wsl).
+- For common setup failures and PATH/tooling pitfalls, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
+
 ---
 
 ## Step 1: Clone and Explore

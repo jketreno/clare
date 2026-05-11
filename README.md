@@ -190,6 +190,83 @@ CLARE-owned files (`verify-ci.sh`, AI configs, `principles.md`) are updated. You
 
 ---
 
+## Optional Extension Tool Installs (macOS / Linux / WSL)
+
+When you enable an extension in `clare/extensions.yml`, `./clare/verify-ci.sh` checks that the tool exists and prints the extension's `install_hint` if it is missing.
+
+If you hit setup or PATH issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+### Supported host environments
+
+- macOS: fully supported
+- Linux: fully supported
+- Windows: recommended via WSL2 (Ubuntu or similar) with Bash
+
+CLARE scripts are Bash-first. You can run on native Windows with custom setup, but WSL is the tested and recommended path.
+
+### TypeScript / JavaScript complexity (ESLint)
+
+Extension name: `eslint-complexity`
+
+Install requirements:
+
+```bash
+# from your project root
+npm install --save-dev eslint
+```
+
+Notes:
+
+- Use Node + npm from your normal project toolchain.
+- With ESLint v9, ensure you have a flat config file (`eslint.config.js` / `eslint.config.mjs` / `eslint.config.cjs`).
+
+### Go complexity (golangci-lint)
+
+Extension name: `golangci-lint-complexity`
+
+Install requirements:
+
+```bash
+# requires a working Go toolchain first
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+```
+
+Notes:
+
+- Ensure your Go bin directory is on PATH (commonly `$(go env GOPATH)/bin` or `~/go/bin`).
+- CLARE enforces threshold settings for `cyclop` and `gocognit` when this extension is enabled.
+
+### Python complexity (complexipy)
+
+Extension name: `complexipy-complexity`
+
+Install requirements:
+
+```bash
+# preferred
+pipx install complexipy
+
+# alternative inside your project's Python environment
+pip install complexipy
+```
+
+Notes:
+
+- `pipx` is recommended for a clean global CLI install.
+- If you install via `pip`, use the same Python environment your CI/automation uses.
+
+### Quick verification
+
+After installing tools and enabling extensions:
+
+```bash
+./clare/verify-ci.sh
+```
+
+If a required command is still missing, verify PATH and rerun.
+
+---
+
 ## Alternative: Bootstrap from Source
 
 If you prefer to work from the git repo (for contributing or customizing CLARE itself):
@@ -213,6 +290,7 @@ Use `--update` when re-running against a project that already has CLARE installe
 |-------|---------|
 | Origin & philosophy | [ORIGIN.md](ORIGIN.md) |
 | Full setup walkthrough | [docs/getting-started.md](docs/getting-started.md) |
+| Troubleshooting | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Enforcement with tests | [docs/principles/constrained.md](docs/principles/constrained.md) |
 | Autonomy boundaries | [docs/principles/limited.md](docs/principles/limited.md) |
 | Generated code workflows | [docs/principles/ephemeral.md](docs/principles/ephemeral.md) |
