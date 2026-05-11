@@ -1032,7 +1032,7 @@ setup_step_extensions() {
   setup_load_extension_catalog "$extensions_file"
   setup_print_extension_catalog
 
-  local selection
+  local selection=""
   setup_collect_extension_selection selection
   setup_enable_selected_extensions "$extensions_file" "$selection"
 }
