@@ -24,7 +24,7 @@ extensions:
   # Project: https://eslint.org/docs/latest/rules/complexity
   #
   - name: eslint-complexity
-    enabled: false
+    enabled: true
     description: "Cyclomatic complexity analysis for TypeScript/JavaScript"
     command: "npx"
     install_hint: "npm install --save-dev eslint"
@@ -100,7 +100,7 @@ extensions:
   # which adds per-function and nesting-depth limits via ESLint.
   #
   - name: file-size
-    enabled: false
+    enabled: true
     description: "File length limits — catches oversized components and modules"
     command: "wc"
     install_hint: "Built-in (no install needed)"
