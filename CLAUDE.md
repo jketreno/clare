@@ -147,7 +147,7 @@ Wait for approval before writing code.
 | Path | Purpose |
 |------|---------|
 | `clare/autonomy.yml` | Autonomy boundaries + sources of truth |
-| `clare/extensions.yml` | Optional tool extensions (Lizard, etc.) — project-owned |
+| `clare/extensions.yml` | Optional tool extensions (ESLint/golangci-lint/complexipy, etc.) — project-owned |
 | `clare/principles.md` | Five CLARE principles quick reference |
 | `clare/verify-ci.sh` | CI enforcement script — run before completing work (CLARE-owned) |
 | `clare/verify-local.sh` | Project-specific checks — add your checks here |

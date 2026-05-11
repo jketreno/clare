@@ -149,7 +149,7 @@ clare/
   verify-ci.sh          — The enforcement script (CLARE-owned, updated automatically)
   verify-local.sh       — Your project-specific checks (never overwritten)
   autonomy.yml          — Module boundaries (full-autonomy / supervised / humans-only)
-  extensions.yml        — Optional tool extensions (e.g., Lizard complexity analysis)
+  extensions.yml        — Optional tool extensions (ESLint / golangci-lint / complexipy complexity checks)
   principles.md         — AI quick-reference card (read at session start)
   templates/
     architecture-tests/ — Autonomy guard test (copy into your test suite)

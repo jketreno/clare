@@ -4,7 +4,7 @@
 # CLARE Principle: [C] Constrained — extend enforcement with optional tools
 #
 # Extensions are optional checks that verify-ci.sh runs when enabled.
-# Each extension wraps an external tool (e.g., Lizard for cyclomatic complexity).
+# Each extension wraps an external tool (e.g., ESLint, golangci-lint, complexipy).
 #
 # This file is PROJECT-OWNED — CLARE updates will never overwrite it.
 # Enable/disable extensions by setting enabled: true/false below.
@@ -15,31 +15,73 @@
 
 extensions:
 
-  # ── Lizard — Cyclomatic Complexity ────────────────────────────────────────
-  # Lizard analyzes cyclomatic complexity across 16+ languages (C/C++, Java,
-  # Python, JavaScript, TypeScript, Go, Rust, and more). It flags functions
-  # that are too complex to maintain or test reliably.
+  # ── ESLint Complexity — TypeScript / JavaScript ───────────────────────────
+  # Uses ESLint's built-in complexity rule to enforce cyclomatic complexity
+  # limits in TS/JS code. This is the preferred TypeScript path because it
+  # matches existing lint workflows and parser semantics.
   #
-  # Install: pip install lizard
-  # Project: https://github.com/terryyin/lizard
+  # Install: npm install --save-dev eslint
+  # Project: https://eslint.org/docs/latest/rules/complexity
   #
-  - name: lizard
+  - name: eslint-complexity
     enabled: false
-    description: "Cyclomatic complexity analysis (16+ languages)"
-    command: "lizard"
-    install_hint: "pip install lizard"
-    project_url: "https://github.com/terryyin/lizard"
+    description: "Cyclomatic complexity analysis for TypeScript/JavaScript"
+    command: "npx"
+    install_hint: "npm install --save-dev eslint"
+    project_url: "https://eslint.org/docs/latest/rules/complexity"
     # Customize these for your project:
     options:
       # Maximum cyclomatic complexity per function (default: 15)
       threshold: 15
-      # File extensions to analyze (space-separated). Keep this broad enough
-      # for your stack; adjust for non-JS/TS codebases.
+      # File extensions to analyze (space-separated)
       file_types: "js jsx ts tsx"
       # Paths to analyze (space-separated, relative to project root)
       paths: "src"
-      # Extra flags passed directly to lizard (e.g., "--languages python javascript")
-      extra_flags: "--warnings_only"
+      # Extra flags passed directly to eslint
+      extra_flags: ""
+
+  # ── golangci-lint Complexity — Go ─────────────────────────────────────────
+  # Uses golangci-lint with complexity-focused linters (cyclop/gocognit).
+  # verify-ci.sh enforces threshold via a generated config for both linters.
+  # Use extra_flags for additional runner options (for example timeout/output).
+  #
+  # Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+  # Project: https://golangci-lint.run/
+  #
+  - name: golangci-lint-complexity
+    enabled: false
+    description: "Complexity analysis for Go via golangci-lint"
+    command: "golangci-lint"
+    install_hint: "go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+    project_url: "https://golangci-lint.run/"
+    options:
+      # Enforced threshold for cyclop.max-complexity and gocognit.min-complexity
+      threshold: 15
+      file_types: "go"
+      paths: "."
+      # Extra flags passed directly to golangci-lint
+      extra_flags: ""
+
+  # ── complexipy Complexity — Python ────────────────────────────────────────
+  # Fast Python cognitive complexity analysis.
+  # Configure exact threshold semantics via tool-specific flags in extra_flags.
+  #
+  # Install: pipx install complexipy  (or: pip install complexipy)
+  # Project: https://github.com/rohaquinlop/complexipy
+  #
+  - name: complexipy-complexity
+    enabled: false
+    description: "Cognitive complexity analysis for Python"
+    command: "complexipy"
+    install_hint: "pipx install complexipy (or pip install complexipy)"
+    project_url: "https://github.com/rohaquinlop/complexipy"
+    options:
+      # Enforced threshold via --max-complexity-allowed
+      threshold: 15
+      file_types: "py"
+      paths: "."
+      # Extra flags passed directly to complexipy
+      extra_flags: ""
 
   # ── File Size — Component / File Length Limits ───────────────────────────
   # Catches the "one giant file" problem — especially common in React/TSX

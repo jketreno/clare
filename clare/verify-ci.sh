@@ -258,20 +258,19 @@ is_extension_excluded() {
   return 1
 }
 
-run_lizard_check() {
-  local threshold="$1"
+collect_extension_files() {
+  local tool_name="$1"
   local scan_paths="$2"
-  local extra_flags="$3"
-  local file_types="${4:-js jsx ts tsx}"
-  local exclude_patterns="$5"
+  local file_types="$3"
+  local exclude_patterns="$4"
   local effective_scan_paths="$scan_paths"
 
   if ! scan_paths_exist "$scan_paths"; then
     effective_scan_paths="."
-    warn "Lizard: configured paths not found (paths: $scan_paths); falling back to project root"
+    warn "$tool_name: configured paths not found (paths: $scan_paths); falling back to project root"
   fi
 
-  local lizard_files=()
+  local matched_files=0
   while IFS= read -r rel_path; do
     [[ -z "$rel_path" ]] && continue
     is_default_ignored_path "$rel_path" && continue
@@ -281,27 +280,142 @@ run_lizard_check() {
 
     local abs_path="$PROJECT_ROOT/$rel_path"
     [[ -f "$abs_path" ]] || continue
-    lizard_files+=("$abs_path")
+    echo "$abs_path"
+    matched_files=1
   done < <(list_project_files_respecting_gitignore)
 
-  if [[ ${#lizard_files[@]} -eq 0 ]]; then
-    warn "Lizard: no files matched configured paths/types (paths: $effective_scan_paths, types: $file_types)"
-    return 0
+  if [[ "$matched_files" -eq 0 ]]; then
+    warn "$tool_name: no files matched configured paths/types (paths: $effective_scan_paths, types: $file_types)"
+    return 1
   fi
 
-  local lizard_cmd=("lizard")
-  [[ -n "$threshold" ]] && lizard_cmd+=("--CCN" "$threshold")
+  return 0
+}
+
+run_eslint_complexity_check() {
+  local command="$1"
+  local threshold="$2"
+  local scan_paths="$3"
+  local extra_flags="$4"
+  local file_types="${5:-js jsx ts tsx}"
+  local exclude_patterns="$6"
+
+  local files=()
+  mapfile -t files < <(collect_extension_files "ESLint complexity" "$scan_paths" "$file_types" "$exclude_patterns" || true)
+  [[ ${#files[@]} -eq 0 ]] && return 0
+
+  local eslint_cmd=()
+  if [[ "$command" == "npx" ]]; then
+    eslint_cmd=("npx" "--no-install" "eslint")
+  else
+    eslint_cmd=("$command")
+  fi
+
+  if [[ -n "$threshold" ]]; then
+    eslint_cmd+=("--rule" "complexity: [\"error\", $threshold]")
+  fi
+
   if [[ -n "$extra_flags" ]]; then
     # Intentional word splitting for a user-specified flag string.
     # shellcheck disable=SC2206
     local extra_parts=($extra_flags)
-    lizard_cmd+=("${extra_parts[@]}")
+    eslint_cmd+=("${extra_parts[@]}")
   fi
-  lizard_cmd+=("${lizard_files[@]}")
+
+  eslint_cmd+=("${files[@]}")
 
   local cmd_string
-  printf -v cmd_string '%q ' "${lizard_cmd[@]}"
-  run_check "Lizard (cyclomatic complexity)" "$cmd_string 2>&1" || true
+  printf -v cmd_string '%q ' "${eslint_cmd[@]}"
+  run_check "ESLint complexity (TypeScript/JavaScript)" "$cmd_string 2>&1" || true
+}
+
+run_golangci_lint_complexity_check() {
+  local command="$1"
+  local threshold="$2"
+  local scan_paths="$3"
+  local extra_flags="$4"
+  local file_types="${5:-go}"
+  local exclude_patterns="$6"
+
+  local files=()
+  mapfile -t files < <(collect_extension_files "golangci-lint complexity" "$scan_paths" "$file_types" "$exclude_patterns" || true)
+  [[ ${#files[@]} -eq 0 ]] && return 0
+
+  if [[ -z "$threshold" ]]; then
+    threshold="15"
+  fi
+
+  local config_file
+  config_file="$(mktemp "$PROJECT_ROOT/.golangci-complexity.XXXXXX.yml")"
+  cat >"$config_file" <<EOF
+version: "2"
+linters:
+  default: none
+  enable:
+    - cyclop
+    - gocognit
+  settings:
+    cyclop:
+      max-complexity: $threshold
+    gocognit:
+      min-complexity: $threshold
+EOF
+
+  local -A dirs=()
+  local file
+  for file in "${files[@]}"; do
+    dirs["$(dirname "$file")"]=1
+  done
+
+  local golangci_cmd=("$command" "run" "--config" "$config_file")
+  if [[ -n "$extra_flags" ]]; then
+    # Intentional word splitting for a user-specified flag string.
+    # shellcheck disable=SC2206
+    local extra_parts=($extra_flags)
+    golangci_cmd+=("${extra_parts[@]}")
+  fi
+
+  local dir
+  for dir in "${!dirs[@]}"; do
+    golangci_cmd+=("$dir")
+  done
+
+  local cmd_string
+  printf -v cmd_string '%q ' "${golangci_cmd[@]}"
+  run_check "golangci-lint complexity (Go)" "$cmd_string 2>&1" || true
+  rm -f "$config_file"
+}
+
+run_complexipy_check() {
+  local command="$1"
+  local threshold="$2"
+  local scan_paths="$3"
+  local extra_flags="$4"
+  local file_types="${5:-py}"
+  local exclude_patterns="$6"
+
+  local files=()
+  mapfile -t files < <(collect_extension_files "complexipy" "$scan_paths" "$file_types" "$exclude_patterns" || true)
+  [[ ${#files[@]} -eq 0 ]] && return 0
+
+  local complexipy_cmd=("$command")
+
+  if [[ -n "$threshold" ]]; then
+    complexipy_cmd+=("--max-complexity-allowed" "$threshold")
+  fi
+
+  if [[ -n "$extra_flags" ]]; then
+    # Intentional word splitting for a user-specified flag string.
+    # shellcheck disable=SC2206
+    local extra_parts=($extra_flags)
+    complexipy_cmd+=("${extra_parts[@]}")
+  fi
+
+  complexipy_cmd+=("${files[@]}")
+
+  local cmd_string
+  printf -v cmd_string '%q ' "${complexipy_cmd[@]}"
+  run_check "complexipy (Python cognitive complexity)" "$cmd_string 2>&1" || true
 }
 
 # ─── Project Type Detection ───────────────────────────────────────────────────
@@ -617,8 +731,14 @@ run_extension() {
 
   # Build and run the extension command
   case "$name" in
-    lizard)
-      run_lizard_check "$threshold" "$paths" "$extra" "$file_types" "$exclude"
+    eslint-complexity)
+      run_eslint_complexity_check "$command" "$threshold" "$paths" "$extra" "$file_types" "$exclude"
+      ;;
+    golangci-lint-complexity)
+      run_golangci_lint_complexity_check "$command" "$threshold" "$paths" "$extra" "$file_types" "$exclude"
+      ;;
+    complexipy-complexity)
+      run_complexipy_check "$command" "$threshold" "$paths" "$extra" "$file_types" "$exclude"
       ;;
     file-size)
       run_file_size_check "$threshold" "$paths" "$file_types" "$exclude" "$count_comments"
