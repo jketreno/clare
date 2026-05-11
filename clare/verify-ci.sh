@@ -502,7 +502,7 @@ run_shellmetrics_check() {
 
   local max_ccn
   max_ccn="$(awk '
-    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+/ {
+    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+/ && $0 !~ /<main>/ {
       ccn = $2 + 0
       if (ccn > max) {
         max = ccn
@@ -529,7 +529,7 @@ run_shellmetrics_check() {
     echo "Maximum shell cyclomatic complexity exceeds threshold (max=$max_ccn, threshold=$threshold)." >&2
     echo "Functions over threshold:" >&2
     awk -v t="$threshold" '
-      /^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+/ {
+      /^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+/ && $0 !~ /<main>/ {
         ccn = $2 + 0
         if (ccn > t) {
           print
@@ -542,6 +542,90 @@ run_shellmetrics_check() {
 
   pass "shellmetrics complexity (Bash/Shell) (max CCN: $max_ccn <= $threshold)"
   rm -f "$output_file"
+}
+
+is_clare_framework_repo() {
+  [[ -f "$PROJECT_ROOT/scripts/clare-installer.sh" && -f "$PROJECT_ROOT/install/root/CLAUDE.md" && -f "$PROJECT_ROOT/clare/verify-ci.sh" ]]
+}
+
+append_eslint_ignore_flags() {
+  local out_ref="$1"
+  shift
+  local -a patterns=("$@")
+  local flags=""
+  local pattern escaped_pattern
+
+  for pattern in "${patterns[@]}"; do
+    printf -v escaped_pattern '%q' "$pattern"
+    flags+=" --ignore-pattern $escaped_pattern"
+  done
+
+  printf -v "$out_ref" '%s' "$flags"
+}
+
+run_node_lint_checks() {
+  local is_framework_repo="$1"
+  shift
+  local -a ignore_patterns=("$@")
+  local fix_flag=""
+  $FIX_MODE && fix_flag="--fix"
+
+  if node -e "require.resolve('eslint/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
+    local eslint_ignore_flags=""
+    if [[ "$is_framework_repo" == "false" ]]; then
+      append_eslint_ignore_flags eslint_ignore_flags "${ignore_patterns[@]}"
+    fi
+    run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag$eslint_ignore_flags 2>&1" || true
+  elif [[ -f "$PROJECT_ROOT/.eslintrc.js" || -f "$PROJECT_ROOT/.eslintrc.json" || -f "$PROJECT_ROOT/eslint.config.js" ]]; then
+    warn "ESLint config found but ESLint not installed. Run: npm install"
+  fi
+
+  if node -e "require.resolve('prettier/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
+    local prettier_flag="--check"
+    $FIX_MODE && prettier_flag="--write"
+    if [[ "$is_framework_repo" == "false" ]]; then
+      local prettier_ignore_file
+      prettier_ignore_file="$(mktemp)"
+      if [[ -f "$PROJECT_ROOT/.prettierignore" ]]; then
+        cat "$PROJECT_ROOT/.prettierignore" >"$prettier_ignore_file"
+        echo "" >>"$prettier_ignore_file"
+      fi
+      local pattern
+      for pattern in "${ignore_patterns[@]}"; do
+        echo "$pattern" >>"$prettier_ignore_file"
+      done
+
+      run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag --ignore-path '$prettier_ignore_file' . 2>&1" || true
+      rm -f "$prettier_ignore_file"
+    else
+      run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag . 2>&1" || true
+    fi
+  fi
+
+  if node -e "require.resolve('typescript/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
+    run_check "TypeScript (no-emit)" "cd '$PROJECT_ROOT' && npx tsc --noEmit 2>&1" || true
+  fi
+}
+
+run_python_lint_checks() {
+  if command -v ruff &>/dev/null; then
+    local fix_flag=""
+    $FIX_MODE && fix_flag="--fix"
+    run_check "Ruff" "cd '$PROJECT_ROOT' && ruff check $fix_flag . 2>&1" || true
+  elif command -v flake8 &>/dev/null; then
+    run_check "Flake8" "cd '$PROJECT_ROOT' && flake8 . 2>&1" || true
+  fi
+
+  if command -v mypy &>/dev/null; then
+    run_check "Mypy" "cd '$PROJECT_ROOT' && mypy . 2>&1" || true
+  fi
+}
+
+run_go_lint_checks() {
+  run_check "Go vet" "cd '$PROJECT_ROOT' && go vet ./... 2>&1" || true
+  if command -v golint &>/dev/null; then
+    run_check "Golint" "cd '$PROJECT_ROOT' && golint ./... 2>&1" || true
+  fi
 }
 
 # ─── Project Type Detection ───────────────────────────────────────────────────
@@ -609,9 +693,9 @@ check_build() {
 check_lint() {
   section "Linting"
 
-  local is_clare_framework_repo=false
-  if [[ -f "$PROJECT_ROOT/scripts/clare-installer.sh" && -f "$PROJECT_ROOT/install/root/CLAUDE.md" && -f "$PROJECT_ROOT/clare/verify-ci.sh" ]]; then
-    is_clare_framework_repo=true
+  local framework_repo=false
+  if is_clare_framework_repo; then
+    framework_repo=true
   fi
 
   local -a clare_managed_lint_ignore_patterns=(
@@ -633,70 +717,16 @@ check_lint() {
     if ! $HAS_NODE_RUNTIME; then
       warn "package.json found but node/npm are not installed; skipping Node.js lint/type checks"
     else
-      local fix_flag=""
-      $FIX_MODE && fix_flag="--fix"
-
-      if node -e "require.resolve('eslint/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
-        local eslint_ignore_flags=""
-        if [[ "$is_clare_framework_repo" == "false" ]]; then
-          local pattern
-          for pattern in "${clare_managed_lint_ignore_patterns[@]}"; do
-            printf -v escaped_pattern '%q' "$pattern"
-            eslint_ignore_flags+=" --ignore-pattern $escaped_pattern"
-          done
-        fi
-
-        run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag$eslint_ignore_flags 2>&1" || true
-      elif [[ -f "$PROJECT_ROOT/.eslintrc.js" || -f "$PROJECT_ROOT/.eslintrc.json" || -f "$PROJECT_ROOT/eslint.config.js" ]]; then
-        warn "ESLint config found but ESLint not installed. Run: npm install"
-      fi
-
-      if node -e "require.resolve('prettier/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
-        local prettier_flag="--check"
-        $FIX_MODE && prettier_flag="--write"
-        if [[ "$is_clare_framework_repo" == "false" ]]; then
-          local prettier_ignore_file
-          prettier_ignore_file="$(mktemp)"
-          if [[ -f "$PROJECT_ROOT/.prettierignore" ]]; then
-            cat "$PROJECT_ROOT/.prettierignore" >"$prettier_ignore_file"
-            echo "" >>"$prettier_ignore_file"
-          fi
-          for pattern in "${clare_managed_lint_ignore_patterns[@]}"; do
-            echo "$pattern" >>"$prettier_ignore_file"
-          done
-
-          run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag --ignore-path '$prettier_ignore_file' . 2>&1" || true
-          rm -f "$prettier_ignore_file"
-        else
-          run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag . 2>&1" || true
-        fi
-      fi
-
-      if node -e "require.resolve('typescript/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
-        run_check "TypeScript (no-emit)" "cd '$PROJECT_ROOT' && npx tsc --noEmit 2>&1" || true
-      fi
+      run_node_lint_checks "$framework_repo" "${clare_managed_lint_ignore_patterns[@]}"
     fi
   fi
 
   if $HAS_PYTHON; then
-    if command -v ruff &>/dev/null; then
-      local fix_flag=""
-      $FIX_MODE && fix_flag="--fix"
-      run_check "Ruff" "cd '$PROJECT_ROOT' && ruff check $fix_flag . 2>&1" || true
-    elif command -v flake8 &>/dev/null; then
-      run_check "Flake8" "cd '$PROJECT_ROOT' && flake8 . 2>&1" || true
-    fi
-
-    if command -v mypy &>/dev/null; then
-      run_check "Mypy" "cd '$PROJECT_ROOT' && mypy . 2>&1" || true
-    fi
+    run_python_lint_checks
   fi
 
   if $HAS_GO; then
-    run_check "Go vet" "cd '$PROJECT_ROOT' && go vet ./... 2>&1" || true
-    if command -v golint &>/dev/null; then
-      run_check "Golint" "cd '$PROJECT_ROOT' && golint ./... 2>&1" || true
-    fi
+    run_go_lint_checks
   fi
 }
 

@@ -641,6 +641,425 @@ sync_autonomy_project_name() {
   fi
 }
 
+setup_set_extension_enabled_state() {
+  local config_file="$1"
+  local extension_name="$2"
+  local state="$3"
+  local escaped_ext
+  escaped_ext="$(escape_sed_regex "$extension_name")"
+
+  sed -i "/name:[[:space:]]*${escaped_ext}/,/enabled:/ { s/enabled:[[:space:]]*false/enabled: ${state}/; s/enabled:[[:space:]]*true/enabled: ${state}/; }" "$config_file"
+}
+
+setup_get_extension_enabled_state() {
+  local config_file="$1"
+  local extension_name="$2"
+
+  awk -v ext_name="$extension_name" '
+    function trim(s) {
+      gsub(/^[[:space:]]+/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      return s
+    }
+
+    /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
+      name = $0
+      sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", name)
+      sub(/[[:space:]]*#.*/, "", name)
+      gsub(/"/, "", name)
+      name = trim(name)
+      in_block = (name == ext_name)
+      next
+    }
+
+    in_block && /^[[:space:]]*enabled:[[:space:]]*/ {
+      enabled = $0
+      sub(/^[[:space:]]*enabled:[[:space:]]*/, "", enabled)
+      sub(/[[:space:]]*#.*/, "", enabled)
+      enabled = trim(enabled)
+      if (enabled == "true" || enabled == "false") {
+        print enabled
+        exit
+      }
+    }
+  ' "$config_file"
+}
+
+setup_maybe_migrate_legacy_extensions() {
+  local config_file="$1"
+  local latest_file="$2"
+  local setup_target="$3"
+  local migrate="false"
+  local lizard_enabled
+  local file_size_enabled
+  local backup_file
+
+  [[ -f "$config_file" && -f "$latest_file" ]] || return 0
+
+  if ! grep -Eq '^[[:space:]]*-[[:space:]]*name:[[:space:]]*lizard([[:space:]]|$)' "$config_file"; then
+    return 0
+  fi
+
+  if grep -Eq '^[[:space:]]*-[[:space:]]*name:[[:space:]]*(eslint-complexity|golangci-lint-complexity|complexipy-complexity)([[:space:]]|$)' "$config_file"; then
+    warn "Legacy extension 'lizard' detected in clare/extensions.yml; migrate manually to language-specific extensions"
+    return 0
+  fi
+
+  warn "Detected legacy lizard extension configuration in clare/extensions.yml"
+  if [[ "$YES" == "true" ]]; then
+    migrate="true"
+  elif [[ "$HAS_TTY" == "true" ]] && ask_yn "Migrate legacy lizard config to current extension defaults now?" "y"; then
+    migrate="true"
+  fi
+
+  if [[ "$migrate" != "true" ]]; then
+    info "Keeping existing legacy extensions config"
+    return 0
+  fi
+
+  lizard_enabled="$(setup_get_extension_enabled_state "$config_file" "lizard")"
+  file_size_enabled="$(setup_get_extension_enabled_state "$config_file" "file-size")"
+
+  backup_file="$config_file.bak.pre-lizard-migration"
+  cp "$config_file" "$backup_file"
+  cp "$latest_file" "$config_file"
+
+  if [[ "$lizard_enabled" == "true" ]]; then
+    setup_set_extension_enabled_state "$config_file" "eslint-complexity" "true"
+  fi
+
+  if [[ "$file_size_enabled" == "true" ]]; then
+    setup_set_extension_enabled_state "$config_file" "file-size" "true"
+  fi
+
+  success "Migrated legacy extensions config to current defaults"
+  info "Backup created: ${backup_file#"$setup_target"/}"
+}
+
+SETUP_INSTALLED_SKILLS=""
+
+setup_install_skills_from_arrays() {
+  local label="$1"
+  shift
+  local files_ref="$1"
+  local names_ref="$2"
+  local descs_ref="$3"
+  local prompts_dir="$4"
+  local claude_commands_dir="$5"
+  local cursor_rules_dir="$6"
+  local vscode_prompts_dir="$7"
+  local codex_skills_dir="$8"
+  local setup_target="$9"
+  local -a _files=()
+  local -a _names=()
+  local -a _descs=()
+
+  # Populate local copies of the referenced arrays without Bash namerefs.
+  eval '_files=("${'"$files_ref"'[@]}")'
+  eval '_names=("${'"$names_ref"'[@]}")'
+  eval '_descs=("${'"$descs_ref"'[@]}")'
+
+  [[ ${#_files[@]} -gt 0 ]] || return 0
+
+  echo "$label (installed to .github/prompts/ and mirrored for Claude/Cursor/VS Code/Codex):"
+  echo ""
+  local _i
+  for _i in "${!_files[@]}"; do
+    printf "  %d. %s\n" "$((_i + 1))" "${_names[$_i]}"
+    printf "     %s\n" "${_descs[$_i]}"
+    echo ""
+  done
+
+  local selection
+  selection=""
+  if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
+    printf "${CYAN}  Enter numbers to install (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
+    read -r selection </dev/tty
+  elif [[ "$YES" != "true" ]]; then
+    info "No TTY detected; skipping interactive skill selection"
+  fi
+  echo ""
+
+  if [[ -z "$selection" ]]; then
+    info "Skipped"
+    return 0
+  fi
+
+  local to_install=()
+  if [[ "$selection" == "all" ]]; then
+    for _i in "${!_files[@]}"; do
+      to_install+=("$_i")
+    done
+  else
+    local token
+    for token in $selection; do
+      if [[ "$token" =~ ^[0-9]+$ ]]; then
+        local idx=$((token - 1))
+        if [[ $idx -ge 0 && $idx -lt ${#_files[@]} ]]; then
+          to_install+=("$idx")
+        else
+          warn "No skill at position $token — skipped"
+        fi
+      fi
+    done
+  fi
+
+  if [[ ${#to_install[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  mkdir -p "$prompts_dir"
+  mkdir -p "$claude_commands_dir"
+  mkdir -p "$cursor_rules_dir"
+  mkdir -p "$vscode_prompts_dir"
+  if [[ -e "$setup_target/.codex" && ! -d "$setup_target/.codex" ]]; then
+    warn ".codex exists but is not a directory; skipping Codex skill mirrors"
+  else
+    mkdir -p "$codex_skills_dir"
+  fi
+
+  local idx name src_file
+  for idx in "${to_install[@]}"; do
+    name="${_names[$idx]}"
+    src_file="${_files[$idx]}"
+    cp "$src_file" "$prompts_dir/${name}.prompt.md"
+    cp "$src_file" "$claude_commands_dir/${name}.md"
+    cp "$src_file" "$vscode_prompts_dir/${name}.prompt.md"
+    if [[ -d "$codex_skills_dir" ]]; then
+      mkdir -p "$codex_skills_dir/$name"
+      cp "$src_file" "$codex_skills_dir/$name/SKILL.md"
+    fi
+
+    {
+      echo "---"
+      echo "description: CLARE skill mirror for $name"
+      echo "alwaysApply: false"
+      echo "---"
+      echo ""
+      cat "$src_file"
+    } >"$cursor_rules_dir/skill-${name}.mdc"
+
+    success "Installed: .github/prompts/${name}.prompt.md"
+    success "Mirrored: .claude/commands/${name}.md"
+    success "Mirrored: .cursor/rules/skill-${name}.mdc"
+    success "Mirrored: .vscode/prompts/${name}.prompt.md"
+    if [[ -d "$codex_skills_dir" ]]; then
+      success "Mirrored: .codex/skills/${name}/SKILL.md"
+    fi
+    SETUP_INSTALLED_SKILLS="$SETUP_INSTALLED_SKILLS $name"
+  done
+}
+
+setup_step_install_skills() {
+  local skills_dir="$1"
+  local prompts_dir="$2"
+  local claude_commands_dir="$3"
+  local cursor_rules_dir="$4"
+  local vscode_prompts_dir="$5"
+  local codex_skills_dir="$6"
+  local setup_target="$7"
+
+  header "CLARE Setup — Step 4: Install Skills [optional]"
+  if [[ ! -d "$skills_dir" ]]; then
+    info "No generic skills found in $skills_dir"
+    return 0
+  fi
+
+  SKILL_FILES=()
+  SKILL_NAMES=()
+  SKILL_DESCS=()
+  local skill_file
+  for skill_file in "$skills_dir"/*.md; do
+    [[ -f "$skill_file" ]] || continue
+    SKILL_FILES+=("$skill_file")
+    SKILL_NAMES+=("$(get_skill_meta "$skill_file" "name")")
+    SKILL_DESCS+=("$(get_skill_meta "$skill_file" "description")")
+  done
+
+  setup_install_skills_from_arrays "Generic skills" SKILL_FILES SKILL_NAMES SKILL_DESCS \
+    "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$setup_target"
+}
+
+EXT_NAMES=()
+EXT_DESCS=()
+EXT_CMDS=()
+EXT_HINTS=()
+EXT_URLS=()
+
+setup_load_extension_catalog() {
+  local extensions_file="$1"
+  EXT_NAMES=()
+  EXT_DESCS=()
+  EXT_CMDS=()
+  EXT_HINTS=()
+  EXT_URLS=()
+
+  local local_name=""
+  local local_desc=""
+  local local_cmd=""
+  local local_hint=""
+  local local_url=""
+  local line
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.*) ]]; then
+      if [[ -n "$local_name" ]]; then
+        EXT_NAMES+=("$local_name")
+        EXT_DESCS+=("$local_desc")
+        EXT_CMDS+=("$local_cmd")
+        EXT_HINTS+=("$local_hint")
+        EXT_URLS+=("$local_url")
+      fi
+      local_name="${BASH_REMATCH[1]}"
+      local_name="${local_name#\"}"
+      local_name="${local_name%\"}"
+      local_desc=""
+      local_cmd=""
+      local_hint=""
+      local_url=""
+    elif [[ "$line" =~ ^[[:space:]]*description:[[:space:]]*(.*) ]]; then
+      local_desc="${BASH_REMATCH[1]}"
+      local_desc="${local_desc#\"}"
+      local_desc="${local_desc%\"}"
+    elif [[ "$line" =~ ^[[:space:]]*command:[[:space:]]*(.*) ]]; then
+      local_cmd="${BASH_REMATCH[1]}"
+      local_cmd="${local_cmd#\"}"
+      local_cmd="${local_cmd%\"}"
+    elif [[ "$line" =~ ^[[:space:]]*install_hint:[[:space:]]*(.*) ]]; then
+      local_hint="${BASH_REMATCH[1]}"
+      local_hint="${local_hint#\"}"
+      local_hint="${local_hint%\"}"
+    elif [[ "$line" =~ ^[[:space:]]*project_url:[[:space:]]*(.*) ]]; then
+      local_url="${BASH_REMATCH[1]}"
+      local_url="${local_url#\"}"
+      local_url="${local_url%\"}"
+    fi
+  done <"$extensions_file"
+
+  if [[ -n "$local_name" ]]; then
+    EXT_NAMES+=("$local_name")
+    EXT_DESCS+=("$local_desc")
+    EXT_CMDS+=("$local_cmd")
+    EXT_HINTS+=("$local_hint")
+    EXT_URLS+=("$local_url")
+  fi
+}
+
+setup_print_extension_catalog() {
+  local i
+  for i in "${!EXT_NAMES[@]}"; do
+    printf "  %d. %s — %s\n" "$((i + 1))" "${EXT_NAMES[$i]}" "${EXT_DESCS[$i]}"
+    printf "     Install: %s\n" "${EXT_HINTS[$i]}"
+    [[ -n "${EXT_URLS[$i]}" ]] && printf "     Project: %s\n" "${EXT_URLS[$i]}"
+    echo ""
+  done
+}
+
+setup_collect_extension_selection() {
+  local selection_ref="$1"
+  local selection=""
+
+  if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
+    printf "${CYAN}  Enter numbers to enable (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
+    read -r selection </dev/tty
+  elif [[ "$YES" != "true" ]]; then
+    info "No TTY detected; skipping interactive extension selection"
+  fi
+  echo ""
+
+  printf -v "$selection_ref" '%s' "$selection"
+}
+
+setup_enable_selected_extensions() {
+  local extensions_file="$1"
+  local selection="$2"
+
+  if [[ -z "$selection" ]]; then
+    info "No extensions enabled — edit clare/extensions.yml later to enable"
+    return 0
+  fi
+
+  local enable_idx=()
+  local i token idx ext cmd hint
+  if [[ "$selection" == "all" ]]; then
+    for i in "${!EXT_NAMES[@]}"; do
+      enable_idx+=("$i")
+    done
+  else
+    for token in $selection; do
+      if [[ "$token" =~ ^[0-9]+$ ]]; then
+        idx=$((token - 1))
+        if [[ $idx -ge 0 && $idx -lt ${#EXT_NAMES[@]} ]]; then
+          enable_idx+=("$idx")
+        else
+          warn "No extension at position $token — skipped"
+        fi
+      fi
+    done
+  fi
+
+  for idx in "${enable_idx[@]}"; do
+    ext="${EXT_NAMES[$idx]}"
+    cmd="${EXT_CMDS[$idx]:-$ext}"
+    hint="${EXT_HINTS[$idx]:-check the extensions.yml for install instructions}"
+
+    if [[ "${hint,,}" == *"built-in"* ]] || command -v "$cmd" &>/dev/null; then
+      setup_set_extension_enabled_state "$extensions_file" "$ext" "true"
+      success "Enabled extension: $ext"
+    elif ask_yn "Enable $ext without installing? (verify-ci.sh will remind you)" "n"; then
+      setup_set_extension_enabled_state "$extensions_file" "$ext" "true"
+      success "Enabled extension: $ext (not yet installed)"
+    else
+      info "Skipped $ext"
+    fi
+  done
+}
+
+setup_step_extensions() {
+  local extensions_file="$1"
+  local latest_extensions_file="$2"
+  local setup_target="$3"
+
+  header "CLARE Setup — Step 5: Extensions [optional]"
+  echo "CLARE extensions add optional tool checks to verify-ci.sh."
+  echo ""
+  if [[ ! -f "$extensions_file" ]]; then
+    info "No extensions.yml found — extensions available after install"
+    return 0
+  fi
+
+  setup_maybe_migrate_legacy_extensions "$extensions_file" "$latest_extensions_file" "$setup_target"
+  setup_load_extension_catalog "$extensions_file"
+  setup_print_extension_catalog
+
+  local selection
+  setup_collect_extension_selection selection
+  setup_enable_selected_extensions "$extensions_file" "$selection"
+}
+
+setup_print_next_steps() {
+  echo ""
+  echo "Next steps:"
+
+  if [[ " $SETUP_INSTALLED_SKILLS " == *" autonomy-bootstrap "* ]]; then
+    echo "1. Open your AI assistant (Cursor, Copilot Chat, Claude, etc.)."
+    echo "2. Copy/paste this prompt to generate project-specific autonomy rules:"
+    echo ""
+    echo "Analyze this repository and create clare/autonomy.yml for CLARE."
+    echo "Include module boundaries with path, level (full-autonomy/supervised/humans-only),"
+    echo "and reason for each entry, ending with a wildcard default. Also add 3-8"
+    echo "sources_of_truth entries (concept, source_of_truth, defined_in, note)."
+    echo "Then validate the YAML and show the proposed file content."
+    echo ""
+    echo "3. Review clare/autonomy.yml for your project specifics."
+    echo "4. Run ./clare/verify-ci.sh in your project."
+    return 0
+  fi
+
+  echo "1. Review clare/autonomy.yml for your project specifics."
+  echo "2. Run ./clare/verify-ci.sh in your project."
+}
+
 run_setup_flow() {
   local setup_target="$1"
   local setup_source_root="$2"
@@ -648,7 +1067,6 @@ run_setup_flow() {
 
   local skills_dir prompts_dir extensions_file latest_extensions_file
   local claude_commands_dir cursor_rules_dir vscode_prompts_dir codex_skills_dir
-  local installed_skills=""
 
   skills_dir="$setup_source_root/install/clare/templates/skills"
   prompts_dir="$setup_target/.github/prompts"
@@ -658,200 +1076,7 @@ run_setup_flow() {
   codex_skills_dir="$setup_target/.codex/skills"
   extensions_file="$setup_target/clare/extensions.yml"
   latest_extensions_file="$setup_source_root/clare/extensions.yml"
-
-  set_extension_enabled_state() {
-    local config_file="$1"
-    local extension_name="$2"
-    local state="$3"
-    local escaped_ext
-    escaped_ext="$(escape_sed_regex "$extension_name")"
-
-    sed -i "/name:[[:space:]]*${escaped_ext}/,/enabled:/ { s/enabled:[[:space:]]*false/enabled: ${state}/; s/enabled:[[:space:]]*true/enabled: ${state}/; }" "$config_file"
-  }
-
-  get_extension_enabled_state() {
-    local config_file="$1"
-    local extension_name="$2"
-
-    awk -v ext_name="$extension_name" '
-      function trim(s) {
-        gsub(/^[[:space:]]+/, "", s)
-        gsub(/[[:space:]]+$/, "", s)
-        return s
-      }
-
-      /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
-        name = $0
-        sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", name)
-        sub(/[[:space:]]*#.*/, "", name)
-        gsub(/"/, "", name)
-        name = trim(name)
-        in_block = (name == ext_name)
-        next
-      }
-
-      in_block && /^[[:space:]]*enabled:[[:space:]]*/ {
-        enabled = $0
-        sub(/^[[:space:]]*enabled:[[:space:]]*/, "", enabled)
-        sub(/[[:space:]]*#.*/, "", enabled)
-        enabled = trim(enabled)
-        if (enabled == "true" || enabled == "false") {
-          print enabled
-          exit
-        }
-      }
-    ' "$config_file"
-  }
-
-  maybe_migrate_legacy_extensions() {
-    local config_file="$1"
-    local latest_file="$2"
-    local migrate="false"
-    local lizard_enabled
-    local file_size_enabled
-    local backup_file
-
-    [[ -f "$config_file" && -f "$latest_file" ]] || return 0
-
-    if ! grep -Eq '^[[:space:]]*-[[:space:]]*name:[[:space:]]*lizard([[:space:]]|$)' "$config_file"; then
-      return 0
-    fi
-
-    if grep -Eq '^[[:space:]]*-[[:space:]]*name:[[:space:]]*(eslint-complexity|golangci-lint-complexity|complexipy-complexity)([[:space:]]|$)' "$config_file"; then
-      warn "Legacy extension 'lizard' detected in clare/extensions.yml; migrate manually to language-specific extensions"
-      return 0
-    fi
-
-    warn "Detected legacy lizard extension configuration in clare/extensions.yml"
-    if [[ "$YES" == "true" ]]; then
-      migrate="true"
-    elif [[ "$HAS_TTY" == "true" ]] && ask_yn "Migrate legacy lizard config to current extension defaults now?" "y"; then
-      migrate="true"
-    fi
-
-    if [[ "$migrate" != "true" ]]; then
-      info "Keeping existing legacy extensions config"
-      return 0
-    fi
-
-    lizard_enabled="$(get_extension_enabled_state "$config_file" "lizard")"
-    file_size_enabled="$(get_extension_enabled_state "$config_file" "file-size")"
-
-    backup_file="$config_file.bak.pre-lizard-migration"
-    cp "$config_file" "$backup_file"
-    cp "$latest_file" "$config_file"
-
-    if [[ "$lizard_enabled" == "true" ]]; then
-      set_extension_enabled_state "$config_file" "eslint-complexity" "true"
-    fi
-
-    if [[ "$file_size_enabled" == "true" ]]; then
-      set_extension_enabled_state "$config_file" "file-size" "true"
-    fi
-
-    success "Migrated legacy extensions config to current defaults"
-    info "Backup created: ${backup_file#"$setup_target"/}"
-  }
-
-  install_skills_from_arrays() {
-    local label="$1"
-    shift
-    local files_ref="$1"
-    local names_ref="$2"
-    local descs_ref="$3"
-    local -a _files=()
-    local -a _names=()
-    local -a _descs=()
-
-    # Populate local copies of the referenced arrays without Bash namerefs.
-    eval '_files=("${'"$files_ref"'[@]}")'
-    eval '_names=("${'"$names_ref"'[@]}")'
-    eval '_descs=("${'"$descs_ref"'[@]}")'
-
-    [[ ${#_files[@]} -gt 0 ]] || return 0
-
-    echo "$label (installed to .github/prompts/ and mirrored for Claude/Cursor/VS Code/Codex):"
-    echo ""
-    for _i in "${!_files[@]}"; do
-      printf "  %d. %s\n" "$((_i + 1))" "${_names[$_i]}"
-      printf "     %s\n" "${_descs[$_i]}"
-      echo ""
-    done
-
-    local selection
-    selection=""
-    if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
-      printf "${CYAN}  Enter numbers to install (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
-      read -r selection </dev/tty
-    elif [[ "$YES" != "true" ]]; then
-      info "No TTY detected; skipping interactive skill selection"
-    fi
-    echo ""
-
-    if [[ -z "$selection" ]]; then
-      info "Skipped"
-      return 0
-    fi
-
-    local to_install=()
-    if [[ "$selection" == "all" ]]; then
-      for _i in "${!_files[@]}"; do
-        to_install+=("$_i")
-      done
-    else
-      for token in $selection; do
-        if [[ "$token" =~ ^[0-9]+$ ]]; then
-          local idx=$((token - 1))
-          if [[ $idx -ge 0 && $idx -lt ${#_files[@]} ]]; then
-            to_install+=("$idx")
-          else
-            warn "No skill at position $token — skipped"
-          fi
-        fi
-      done
-    fi
-
-    if [[ ${#to_install[@]} -gt 0 ]]; then
-      mkdir -p "$prompts_dir"
-      mkdir -p "$claude_commands_dir"
-      mkdir -p "$cursor_rules_dir"
-      mkdir -p "$vscode_prompts_dir"
-      if [[ -e "$setup_target/.codex" && ! -d "$setup_target/.codex" ]]; then
-        warn ".codex exists but is not a directory; skipping Codex skill mirrors"
-      else
-        mkdir -p "$codex_skills_dir"
-      fi
-      for idx in "${to_install[@]}"; do
-        local name="${_names[$idx]}"
-        local src_file="${_files[$idx]}"
-        cp "$src_file" "$prompts_dir/${name}.prompt.md"
-        cp "$src_file" "$claude_commands_dir/${name}.md"
-        cp "$src_file" "$vscode_prompts_dir/${name}.prompt.md"
-        if [[ -d "$codex_skills_dir" ]]; then
-          mkdir -p "$codex_skills_dir/$name"
-          cp "$src_file" "$codex_skills_dir/$name/SKILL.md"
-        fi
-
-        {
-          echo "---"
-          echo "description: CLARE skill mirror for $name"
-          echo "alwaysApply: false"
-          echo "---"
-          echo ""
-          cat "$src_file"
-        } >"$cursor_rules_dir/skill-${name}.mdc"
-
-        success "Installed: .github/prompts/${name}.prompt.md"
-        success "Mirrored: .claude/commands/${name}.md"
-        success "Mirrored: .cursor/rules/skill-${name}.mdc"
-        success "Mirrored: .vscode/prompts/${name}.prompt.md"
-        if [[ -d "$codex_skills_dir" ]]; then
-          success "Mirrored: .codex/skills/${name}/SKILL.md"
-        fi
-        installed_skills="$installed_skills $name"
-      done
-    fi
-  }
+  SETUP_INSTALLED_SKILLS=""
 
   header "CLARE Setup — Step 1: Project Info"
   local project_name
@@ -876,165 +1101,16 @@ run_setup_flow() {
     success "Ensured scripts are executable"
   fi
 
-  header "CLARE Setup — Step 4: Install Skills [optional]"
-  if [[ -d "$skills_dir" ]]; then
-    SKILL_FILES=()
-    SKILL_NAMES=()
-    SKILL_DESCS=()
-    for skill_file in "$skills_dir"/*.md; do
-      [[ -f "$skill_file" ]] || continue
-      SKILL_FILES+=("$skill_file")
-      SKILL_NAMES+=("$(get_skill_meta "$skill_file" "name")")
-      SKILL_DESCS+=("$(get_skill_meta "$skill_file" "description")")
-    done
-
-    install_skills_from_arrays "Generic skills" SKILL_FILES SKILL_NAMES SKILL_DESCS
-  else
-    info "No generic skills found in $skills_dir"
-  fi
-
-  header "CLARE Setup — Step 5: Extensions [optional]"
-  echo "CLARE extensions add optional tool checks to verify-ci.sh."
-  echo ""
-  if [[ -f "$extensions_file" ]]; then
-    maybe_migrate_legacy_extensions "$extensions_file" "$latest_extensions_file"
-
-    EXT_NAMES=()
-    EXT_DESCS=()
-    EXT_CMDS=()
-    EXT_HINTS=()
-    EXT_URLS=()
-    local_name=""
-    local_desc=""
-    local_cmd=""
-    local_hint=""
-    local_url=""
-
-    while IFS= read -r line; do
-      if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.*) ]]; then
-        if [[ -n "$local_name" ]]; then
-          EXT_NAMES+=("$local_name")
-          EXT_DESCS+=("$local_desc")
-          EXT_CMDS+=("$local_cmd")
-          EXT_HINTS+=("$local_hint")
-          EXT_URLS+=("$local_url")
-        fi
-        local_name="${BASH_REMATCH[1]}"
-        local_name="${local_name#\"}"
-        local_name="${local_name%\"}"
-        local_desc=""
-        local_cmd=""
-        local_hint=""
-        local_url=""
-      elif [[ "$line" =~ ^[[:space:]]*description:[[:space:]]*(.*) ]]; then
-        local_desc="${BASH_REMATCH[1]}"
-        local_desc="${local_desc#\"}"
-        local_desc="${local_desc%\"}"
-      elif [[ "$line" =~ ^[[:space:]]*command:[[:space:]]*(.*) ]]; then
-        local_cmd="${BASH_REMATCH[1]}"
-        local_cmd="${local_cmd#\"}"
-        local_cmd="${local_cmd%\"}"
-      elif [[ "$line" =~ ^[[:space:]]*install_hint:[[:space:]]*(.*) ]]; then
-        local_hint="${BASH_REMATCH[1]}"
-        local_hint="${local_hint#\"}"
-        local_hint="${local_hint%\"}"
-      elif [[ "$line" =~ ^[[:space:]]*project_url:[[:space:]]*(.*) ]]; then
-        local_url="${BASH_REMATCH[1]}"
-        local_url="${local_url#\"}"
-        local_url="${local_url%\"}"
-      fi
-    done <"$extensions_file"
-
-    if [[ -n "$local_name" ]]; then
-      EXT_NAMES+=("$local_name")
-      EXT_DESCS+=("$local_desc")
-      EXT_CMDS+=("$local_cmd")
-      EXT_HINTS+=("$local_hint")
-      EXT_URLS+=("$local_url")
-    fi
-
-    for _i in "${!EXT_NAMES[@]}"; do
-      printf "  %d. %s — %s\n" "$((_i + 1))" "${EXT_NAMES[$_i]}" "${EXT_DESCS[$_i]}"
-      printf "     Install: %s\n" "${EXT_HINTS[$_i]}"
-      [[ -n "${EXT_URLS[$_i]}" ]] && printf "     Project: %s\n" "${EXT_URLS[$_i]}"
-      echo ""
-    done
-
-    EXT_SELECTION=""
-    if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
-      printf "${CYAN}  Enter numbers to enable (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
-      read -r EXT_SELECTION </dev/tty
-    elif [[ "$YES" != "true" ]]; then
-      info "No TTY detected; skipping interactive extension selection"
-    fi
-    echo ""
-
-    if [[ -n "$EXT_SELECTION" ]]; then
-      ENABLE_IDX=()
-      if [[ "$EXT_SELECTION" == "all" ]]; then
-        for _i in "${!EXT_NAMES[@]}"; do
-          ENABLE_IDX+=("$_i")
-        done
-      else
-        for token in $EXT_SELECTION; do
-          if [[ "$token" =~ ^[0-9]+$ ]]; then
-            idx=$((token - 1))
-            if [[ $idx -ge 0 && $idx -lt ${#EXT_NAMES[@]} ]]; then
-              ENABLE_IDX+=("$idx")
-            else
-              warn "No extension at position $token — skipped"
-            fi
-          fi
-        done
-      fi
-
-      for idx in "${ENABLE_IDX[@]}"; do
-        ext="${EXT_NAMES[$idx]}"
-        cmd="${EXT_CMDS[$idx]:-$ext}"
-        hint="${EXT_HINTS[$idx]:-check the extensions.yml for install instructions}"
-
-        if [[ "${hint,,}" == *"built-in"* ]] || command -v "$cmd" &>/dev/null; then
-          set_extension_enabled_state "$extensions_file" "$ext" "true"
-          success "Enabled extension: $ext"
-        elif ask_yn "Enable $ext without installing? (verify-ci.sh will remind you)" "n"; then
-          set_extension_enabled_state "$extensions_file" "$ext" "true"
-          success "Enabled extension: $ext (not yet installed)"
-        else
-          info "Skipped $ext"
-        fi
-      done
-    else
-      info "No extensions enabled — edit clare/extensions.yml later to enable"
-    fi
-  else
-    info "No extensions.yml found — extensions available after install"
-  fi
+  setup_step_install_skills "$skills_dir" "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$setup_target"
+  setup_step_extensions "$extensions_file" "$latest_extensions_file" "$setup_target"
 
   header "Setup Complete"
   success "CLARE is configured for: $project_name"
-  if [[ -n "$installed_skills" ]]; then
-    echo "Installed skills:$installed_skills"
+  if [[ -n "$SETUP_INSTALLED_SKILLS" ]]; then
+    echo "Installed skills:$SETUP_INSTALLED_SKILLS"
   fi
 
-  echo ""
-  echo "Next steps:"
-
-  if [[ " $installed_skills " == *" autonomy-bootstrap "* ]]; then
-    echo "1. Open your AI assistant (Cursor, Copilot Chat, Claude, etc.)."
-    echo "2. Copy/paste this prompt to generate project-specific autonomy rules:"
-    echo ""
-    echo "Analyze this repository and create clare/autonomy.yml for CLARE."
-    echo "Include module boundaries with path, level (full-autonomy/supervised/humans-only),"
-    echo "and reason for each entry, ending with a wildcard default. Also add 3-8"
-    echo "sources_of_truth entries (concept, source_of_truth, defined_in, note)."
-    echo "Then validate the YAML and show the proposed file content."
-    echo ""
-    echo "3. Review clare/autonomy.yml for your project specifics."
-    echo "4. Run ./clare/verify-ci.sh in your project."
-  else
-    echo "1. Review clare/autonomy.yml for your project specifics."
-    echo "2. Run ./clare/verify-ci.sh in your project."
-  fi
+  setup_print_next_steps
 }
 
 while [[ $# -gt 0 ]]; do
