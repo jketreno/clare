@@ -300,6 +300,14 @@ run_eslint_complexity_check() {
   local file_types="${5:-js jsx ts tsx}"
   local exclude_patterns="$6"
 
+  eslint_config_exists() {
+    local config_name
+    for config_name in eslint.config.js eslint.config.mjs eslint.config.cjs; do
+      [[ -f "$PROJECT_ROOT/$config_name" ]] && return 0
+    done
+    return 1
+  }
+
   local files=()
   mapfile -t files < <(collect_extension_files "ESLint complexity" "$scan_paths" "$file_types" "$exclude_patterns" || true)
   [[ ${#files[@]} -eq 0 ]] && return 0
@@ -320,6 +328,33 @@ run_eslint_complexity_check() {
     # shellcheck disable=SC2206
     local extra_parts=($extra_flags)
     eslint_cmd+=("${extra_parts[@]}")
+  fi
+
+  local has_eslint_config=true
+  if ! eslint_config_exists; then
+    has_eslint_config=false
+  fi
+
+  if [[ "$has_eslint_config" == "false" ]]; then
+    eslint_cmd+=("--no-config-lookup")
+
+    # In no-config mode ESLint cannot parse TS/TSX without a configured parser.
+    local filtered_files=()
+    local file_path
+    for file_path in "${files[@]}"; do
+      case "$file_path" in
+        *.ts | *.tsx) ;;
+        *) filtered_files+=("$file_path") ;;
+      esac
+    done
+
+    if [[ ${#filtered_files[@]} -eq 0 ]]; then
+      warn "ESLint complexity: no eslint.config.* found and only TS/TSX files matched; skipping" >&2
+      return 0
+    fi
+
+    files=("${filtered_files[@]}")
+    warn "ESLint complexity: no eslint.config.* found; using --no-config-lookup and JS/JSX files only" >&2
   fi
 
   eslint_cmd+=("${files[@]}")
