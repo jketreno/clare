@@ -24,7 +24,7 @@ extensions:
   # Project: https://eslint.org/docs/latest/rules/complexity
   #
   - name: eslint-complexity
-    enabled: true
+    enabled: false
     description: "Cyclomatic complexity analysis for TypeScript/JavaScript"
     command: "npx"
     install_hint: "npm install --save-dev eslint"

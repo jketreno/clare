@@ -267,7 +267,7 @@ collect_extension_files() {
 
   if ! scan_paths_exist "$scan_paths"; then
     effective_scan_paths="."
-    warn "$tool_name: configured paths not found (paths: $scan_paths); falling back to project root"
+    warn "$tool_name: configured paths not found (paths: $scan_paths); falling back to project root" >&2
   fi
 
   local matched_files=0
@@ -285,7 +285,7 @@ collect_extension_files() {
   done < <(list_project_files_respecting_gitignore)
 
   if [[ "$matched_files" -eq 0 ]]; then
-    warn "$tool_name: no files matched configured paths/types (paths: $effective_scan_paths, types: $file_types)"
+    warn "$tool_name: no files matched configured paths/types (paths: $effective_scan_paths, types: $file_types)" >&2
     return 1
   fi
 
