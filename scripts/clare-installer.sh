@@ -531,7 +531,7 @@ run_setup_flow() {
   local setup_source_root="$2"
   local is_fresh_install="${3:-false}"
 
-  local skills_dir prompts_dir extensions_file
+  local skills_dir prompts_dir extensions_file latest_extensions_file
   local claude_commands_dir cursor_rules_dir vscode_prompts_dir codex_skills_dir
   local installed_skills=""
 
@@ -542,6 +542,101 @@ run_setup_flow() {
   vscode_prompts_dir="$setup_target/.vscode/prompts"
   codex_skills_dir="$setup_target/.codex/skills"
   extensions_file="$setup_target/clare/extensions.yml"
+  latest_extensions_file="$setup_source_root/clare/extensions.yml"
+
+  set_extension_enabled_state() {
+    local config_file="$1"
+    local extension_name="$2"
+    local state="$3"
+    local escaped_ext
+    escaped_ext="$(escape_sed_regex "$extension_name")"
+
+    sed -i "/name:[[:space:]]*${escaped_ext}/,/enabled:/ { s/enabled:[[:space:]]*false/enabled: ${state}/; s/enabled:[[:space:]]*true/enabled: ${state}/; }" "$config_file"
+  }
+
+  get_extension_enabled_state() {
+    local config_file="$1"
+    local extension_name="$2"
+
+    awk -v ext_name="$extension_name" '
+      function trim(s) {
+        gsub(/^[[:space:]]+/, "", s)
+        gsub(/[[:space:]]+$/, "", s)
+        return s
+      }
+
+      /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
+        name = $0
+        sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", name)
+        sub(/[[:space:]]*#.*/, "", name)
+        gsub(/"/, "", name)
+        name = trim(name)
+        in_block = (name == ext_name)
+        next
+      }
+
+      in_block && /^[[:space:]]*enabled:[[:space:]]*/ {
+        enabled = $0
+        sub(/^[[:space:]]*enabled:[[:space:]]*/, "", enabled)
+        sub(/[[:space:]]*#.*/, "", enabled)
+        enabled = trim(enabled)
+        if (enabled == "true" || enabled == "false") {
+          print enabled
+          exit
+        }
+      }
+    ' "$config_file"
+  }
+
+  maybe_migrate_legacy_extensions() {
+    local config_file="$1"
+    local latest_file="$2"
+    local migrate="false"
+    local lizard_enabled
+    local file_size_enabled
+    local backup_file
+
+    [[ -f "$config_file" && -f "$latest_file" ]] || return 0
+
+    if ! grep -Eq '^[[:space:]]*-[[:space:]]*name:[[:space:]]*lizard([[:space:]]|$)' "$config_file"; then
+      return 0
+    fi
+
+    if grep -Eq '^[[:space:]]*-[[:space:]]*name:[[:space:]]*(eslint-complexity|golangci-lint-complexity|complexipy-complexity)([[:space:]]|$)' "$config_file"; then
+      warn "Legacy extension 'lizard' detected in clare/extensions.yml; migrate manually to language-specific extensions"
+      return 0
+    fi
+
+    warn "Detected legacy lizard extension configuration in clare/extensions.yml"
+    if [[ "$YES" == "true" ]]; then
+      migrate="true"
+    elif [[ "$HAS_TTY" == "true" ]] && ask_yn "Migrate legacy lizard config to current extension defaults now?" "y"; then
+      migrate="true"
+    fi
+
+    if [[ "$migrate" != "true" ]]; then
+      info "Keeping existing legacy extensions config"
+      return 0
+    fi
+
+    lizard_enabled="$(get_extension_enabled_state "$config_file" "lizard")"
+    file_size_enabled="$(get_extension_enabled_state "$config_file" "file-size")"
+
+    backup_file="$config_file.bak.pre-lizard-migration"
+    cp "$config_file" "$backup_file"
+    cp "$latest_file" "$config_file"
+
+    if [[ "$lizard_enabled" == "true" ]]; then
+      set_extension_enabled_state "$config_file" "eslint-complexity" "true"
+    fi
+
+    if [[ "$file_size_enabled" == "true" ]]; then
+      set_extension_enabled_state "$config_file" "file-size" "true"
+    fi
+
+    success "Migrated legacy extensions config to current defaults"
+    info "Backup created: ${backup_file#"$setup_target"/}"
+  }
 
   install_skills_from_arrays() {
     local label="$1"
@@ -687,6 +782,8 @@ run_setup_flow() {
   echo "CLARE extensions add optional tool checks to verify-ci.sh."
   echo ""
   if [[ -f "$extensions_file" ]]; then
+    maybe_migrate_legacy_extensions "$extensions_file" "$latest_extensions_file"
+
     EXT_NAMES=()
     EXT_DESCS=()
     EXT_CMDS=()
@@ -780,13 +877,12 @@ run_setup_flow() {
         ext="${EXT_NAMES[$idx]}"
         cmd="${EXT_CMDS[$idx]:-$ext}"
         hint="${EXT_HINTS[$idx]:-check the extensions.yml for install instructions}"
-        escaped_ext="$(escape_sed_regex "$ext")"
 
         if [[ "${hint,,}" == *"built-in"* ]] || command -v "$cmd" &>/dev/null; then
-          sed -i "/name:[[:space:]]*${escaped_ext}/,/enabled:/{s/enabled:[[:space:]]*false/enabled: true/}" "$extensions_file"
+          set_extension_enabled_state "$extensions_file" "$ext" "true"
           success "Enabled extension: $ext"
         elif ask_yn "Enable $ext without installing? (verify-ci.sh will remind you)" "n"; then
-          sed -i "/name:[[:space:]]*${escaped_ext}/,/enabled:/{s/enabled:[[:space:]]*false/enabled: true/}" "$extensions_file"
+          set_extension_enabled_state "$extensions_file" "$ext" "true"
           success "Enabled extension: $ext (not yet installed)"
         else
           info "Skipped $ext"

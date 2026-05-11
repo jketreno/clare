@@ -245,6 +245,50 @@ run_forbidden_pipeline_check() {
   fi
 }
 
+run_agent_environment_parity_check() {
+  section "Agent Environment Parity"
+
+  local -a parity_rules=(
+    "AGENTS.md|install/root/AGENTS.md|Codex"
+    "CLAUDE.md|install/root/CLAUDE.md|Claude"
+    ".github/copilot-instructions.md|install/.github/copilot-instructions.md|Copilot"
+    ".cursorrules|install/root/.cursorrules|Cursor"
+  )
+
+  local has_error=false
+  local entry left right label
+
+  for entry in "${parity_rules[@]}"; do
+    IFS='|' read -r left right label <<<"$entry"
+
+    if [[ ! -f "$PROJECT_ROOT/$left" ]]; then
+      echo "Missing $label source file: $left" >&2
+      has_error=true
+      continue
+    fi
+
+    if [[ ! -f "$PROJECT_ROOT/$right" ]]; then
+      echo "Missing $label install mirror: $right" >&2
+      has_error=true
+      continue
+    fi
+
+    if ! cmp -s "$PROJECT_ROOT/$left" "$PROJECT_ROOT/$right"; then
+      echo "$label config parity mismatch:" >&2
+      echo "  - source: $left" >&2
+      echo "  - mirror: $right" >&2
+      echo "  Update both so installed agent environments stay in sync." >&2
+      has_error=true
+    fi
+  done
+
+  if [[ "$has_error" == "true" ]]; then
+    fail "Agent config parity (Copilot/Claude/Codex/Cursor)"
+  else
+    pass "Agent config parity (Copilot/Claude/Codex/Cursor)"
+  fi
+}
+
 shell_rel_files=()
 collect_shell_files shell_rel_files
 humans_only_paths=()
@@ -288,3 +332,5 @@ else
 
   run_forbidden_pipeline_check "${shell_rel_files[@]}"
 fi
+
+run_agent_environment_parity_check

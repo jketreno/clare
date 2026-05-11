@@ -5,6 +5,13 @@ This project uses the CLARE framework. Detailed rules are in `.cursor/rules/`.
 ## Core Rule
 Always run `./clare/verify-ci.sh` before marking work complete.
 
+## Cross-Agent Sync Rule
+When CLARE agent configuration changes, update all supported agent environments in the same change:
+- Copilot: `.github/copilot-instructions.md` and `install/.github/copilot-instructions.md`
+- Claude: `CLAUDE.md` and `install/root/CLAUDE.md`
+- Codex: `AGENTS.md` and `install/root/AGENTS.md`
+- Cursor: `.cursorrules` and `install/root/.cursorrules`
+
 ## Before Any File Change
 Check `clare/autonomy.yml` for the file path:
 - `full-autonomy` → proceed

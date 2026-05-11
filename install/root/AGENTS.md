@@ -20,6 +20,18 @@ Before sending a final response for an implementation task, include:
 
 If running in read-only mode, explicitly state: `verify-ci.sh not run because session is read-only.`
 
+## Cross-Agent Sync Rule
+
+When CLARE agent configuration changes, update all supported agent environments in the same change.
+
+Supported environments:
+- Copilot: `.github/copilot-instructions.md` and `install/.github/copilot-instructions.md`
+- Claude: `CLAUDE.md` and `install/root/CLAUDE.md`
+- Codex: `AGENTS.md` and `install/root/AGENTS.md`
+- Cursor: `.cursorrules` and `install/root/.cursorrules`
+
+This includes rule updates, skill/workflow guidance, and CLARE installer-facing agent instructions.
+
 ## Session Start Checklist
 
 At the start of every session, before making code changes:
