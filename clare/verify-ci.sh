@@ -585,7 +585,7 @@ run_node_lint_checks() {
     $FIX_MODE && prettier_flag="--write"
     if [[ "$is_framework_repo" == "false" ]]; then
       local prettier_ignore_file
-      prettier_ignore_file="$(mktemp)"
+      prettier_ignore_file="$(mktemp "$PROJECT_ROOT/.prettierignore.clare.XXXXXX")"
       if [[ -f "$PROJECT_ROOT/.prettierignore" ]]; then
         cat "$PROJECT_ROOT/.prettierignore" >"$prettier_ignore_file"
         echo "" >>"$prettier_ignore_file"
