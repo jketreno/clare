@@ -28,6 +28,12 @@ set -euo pipefail
 SCRIPT_SELF="${BASH_SOURCE:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SELF")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Include common user-local binary path for optional CLI extensions.
+if [[ -d "$HOME/bin" ]]; then
+  PATH="$HOME/bin:$PATH"
+fi
+
 FAST_MODE=false
 FIX_MODE=false
 INCLUDE_UNTRACKED=true

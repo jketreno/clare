@@ -196,6 +196,25 @@ command -v shellmetrics
 ```
 
 2. Ensure `$HOME/bin` is on PATH in your shell startup file.
+  - Bash:
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+  - Zsh:
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+  - Then confirm:
+
+```bash
+command -v shellmetrics
+```
 3. If needed, set extension `extra_flags` to select parser shell (example: `--shell bash`).
 
 ## macOS Setup Pitfalls
