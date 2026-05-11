@@ -18,7 +18,7 @@ Windows note:
 
 Optional extension tooling:
 
-- If you enable optional complexity extensions in `clare/extensions.yml`, install the corresponding toolchain first (ESLint, golangci-lint, complexipy).
+- If you enable optional complexity extensions in `clare/extensions.yml`, install the corresponding toolchain first (ESLint, golangci-lint, complexipy, shellmetrics).
 - See the install matrix in [README.md](../README.md#optional-extension-tool-installs-macos--linux--wsl).
 - For common setup failures and PATH/tooling pitfalls, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
 

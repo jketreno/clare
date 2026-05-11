@@ -168,6 +168,36 @@ pipx ensurepath
 
 3. Restart shell and re-check command visibility.
 
+### Bash/shell complexity (shellmetrics-complexity)
+
+Required command:
+
+- shellmetrics
+
+Install:
+
+```bash
+mkdir -p "$HOME/bin"
+curl -fsSL https://git.io/shellmetrics -o "$HOME/bin/shellmetrics"
+chmod +x "$HOME/bin/shellmetrics"
+```
+
+Common pitfalls:
+
+- shellmetrics installed but `$HOME/bin` is not on PATH.
+- Parser shell mismatch for scripts that rely on bash-specific syntax.
+
+Fix:
+
+1. Confirm executable visibility:
+
+```bash
+command -v shellmetrics
+```
+
+2. Ensure `$HOME/bin` is on PATH in your shell startup file.
+3. If needed, set extension `extra_flags` to select parser shell (example: `--shell bash`).
+
 ## macOS Setup Pitfalls
 
 ### Homebrew command not found

@@ -255,6 +255,23 @@ Notes:
 - `pipx` is recommended for a clean global CLI install.
 - If you install via `pip`, use the same Python environment your CI/automation uses.
 
+### Bash/shell complexity (shellmetrics)
+
+Extension name: `shellmetrics-complexity`
+
+Install requirements:
+
+```bash
+mkdir -p ~/bin
+curl -fsSL https://git.io/shellmetrics -o ~/bin/shellmetrics
+chmod +x ~/bin/shellmetrics
+```
+
+Notes:
+
+- Ensure `~/bin` is on PATH.
+- You can pass parser flags via extension `extra_flags` (for example `--shell bash`).
+
 ### Quick verification
 
 After installing tools and enabling extensions:

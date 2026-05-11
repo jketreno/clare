@@ -453,6 +453,91 @@ run_complexipy_check() {
   run_check "complexipy (Python cognitive complexity)" "$cmd_string 2>&1" || true
 }
 
+run_shellmetrics_check() {
+  local command="$1"
+  local threshold="$2"
+  local scan_paths="$3"
+  local extra_flags="$4"
+  local file_types="${5:-sh bash}"
+  local exclude_patterns="$6"
+
+  local files=()
+  mapfile -t files < <(collect_extension_files "shellmetrics" "$scan_paths" "$file_types" "$exclude_patterns" || true)
+  [[ ${#files[@]} -eq 0 ]] && return 0
+
+  if [[ -z "$threshold" ]]; then
+    threshold="15"
+  fi
+
+  local shellmetrics_cmd=("$command" "--no-color")
+
+  if [[ -n "$extra_flags" ]]; then
+    # Intentional word splitting for a user-specified flag string.
+    # shellcheck disable=SC2206
+    local extra_parts=($extra_flags)
+    shellmetrics_cmd+=("${extra_parts[@]}")
+  fi
+
+  shellmetrics_cmd+=("${files[@]}")
+
+  local cmd_string
+  printf -v cmd_string '%q ' "${shellmetrics_cmd[@]}"
+  info "Running: $cmd_string 2>&1"
+
+  local output_file
+  output_file="$(mktemp)"
+
+  if ! "${shellmetrics_cmd[@]}" >"$output_file" 2>&1; then
+    fail "shellmetrics complexity (Bash/Shell)"
+    cat "$output_file"
+    rm -f "$output_file"
+    return 1
+  fi
+
+  local max_ccn
+  max_ccn="$(awk '
+    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+/ {
+      ccn = $2 + 0
+      if (ccn > max) {
+        max = ccn
+      }
+      found = 1
+    }
+    END {
+      if (found == 1) {
+        print max
+      }
+    }
+  ' "$output_file")"
+
+  if [[ -z "$max_ccn" ]]; then
+    fail "shellmetrics complexity (Bash/Shell)"
+    echo "shellmetrics output did not contain parseable CCN rows." >&2
+    cat "$output_file"
+    rm -f "$output_file"
+    return 1
+  fi
+
+  if ((max_ccn > threshold)); then
+    fail "shellmetrics complexity (Bash/Shell)"
+    echo "Maximum shell cyclomatic complexity exceeds threshold (max=$max_ccn, threshold=$threshold)." >&2
+    echo "Functions over threshold:" >&2
+    awk -v t="$threshold" '
+      /^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+/ {
+        ccn = $2 + 0
+        if (ccn > t) {
+          print
+        }
+      }
+    ' "$output_file" >&2
+    rm -f "$output_file"
+    return 1
+  fi
+
+  pass "shellmetrics complexity (Bash/Shell) (max CCN: $max_ccn <= $threshold)"
+  rm -f "$output_file"
+}
+
 # ─── Project Type Detection ───────────────────────────────────────────────────
 
 detect_project() {
@@ -518,6 +603,26 @@ check_build() {
 check_lint() {
   section "Linting"
 
+  local is_clare_framework_repo=false
+  if [[ -f "$PROJECT_ROOT/scripts/clare-installer.sh" && -f "$PROJECT_ROOT/install/root/CLAUDE.md" && -f "$PROJECT_ROOT/clare/verify-ci.sh" ]]; then
+    is_clare_framework_repo=true
+  fi
+
+  local -a clare_managed_lint_ignore_patterns=(
+    "clare/**"
+    ".github/copilot-instructions.md"
+    ".github/instructions/**"
+    ".github/prompts/**"
+    ".claude/commands/**"
+    ".vscode/prompts/**"
+    ".codex/skills/**"
+    ".cursor/rules/clare-*.mdc"
+    ".cursor/rules/skill-*.mdc"
+    ".cursorrules"
+    "AGENTS.md"
+    "CLAUDE.md"
+  )
+
   if $HAS_NODE; then
     if ! $HAS_NODE_RUNTIME; then
       warn "package.json found but node/npm are not installed; skipping Node.js lint/type checks"
@@ -526,7 +631,16 @@ check_lint() {
       $FIX_MODE && fix_flag="--fix"
 
       if node -e "require.resolve('eslint/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
-        run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag 2>&1" || true
+        local eslint_ignore_flags=""
+        if [[ "$is_clare_framework_repo" == "false" ]]; then
+          local pattern
+          for pattern in "${clare_managed_lint_ignore_patterns[@]}"; do
+            printf -v escaped_pattern '%q' "$pattern"
+            eslint_ignore_flags+=" --ignore-pattern $escaped_pattern"
+          done
+        fi
+
+        run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag$eslint_ignore_flags 2>&1" || true
       elif [[ -f "$PROJECT_ROOT/.eslintrc.js" || -f "$PROJECT_ROOT/.eslintrc.json" || -f "$PROJECT_ROOT/eslint.config.js" ]]; then
         warn "ESLint config found but ESLint not installed. Run: npm install"
       fi
@@ -534,7 +648,22 @@ check_lint() {
       if node -e "require.resolve('prettier/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
         local prettier_flag="--check"
         $FIX_MODE && prettier_flag="--write"
-        run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag . 2>&1" || true
+        if [[ "$is_clare_framework_repo" == "false" ]]; then
+          local prettier_ignore_file
+          prettier_ignore_file="$(mktemp)"
+          if [[ -f "$PROJECT_ROOT/.prettierignore" ]]; then
+            cat "$PROJECT_ROOT/.prettierignore" >"$prettier_ignore_file"
+            echo "" >>"$prettier_ignore_file"
+          fi
+          for pattern in "${clare_managed_lint_ignore_patterns[@]}"; do
+            echo "$pattern" >>"$prettier_ignore_file"
+          done
+
+          run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag --ignore-path '$prettier_ignore_file' . 2>&1" || true
+          rm -f "$prettier_ignore_file"
+        else
+          run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag . 2>&1" || true
+        fi
       fi
 
       if node -e "require.resolve('typescript/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
@@ -774,6 +903,9 @@ run_extension() {
       ;;
     complexipy-complexity)
       run_complexipy_check "$command" "$threshold" "$paths" "$extra" "$file_types" "$exclude"
+      ;;
+    shellmetrics-complexity)
+      run_shellmetrics_check "$command" "$threshold" "$paths" "$extra" "$file_types" "$exclude"
       ;;
     file-size)
       run_file_size_check "$threshold" "$paths" "$file_types" "$exclude" "$count_comments"

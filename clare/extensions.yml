@@ -83,6 +83,32 @@ extensions:
       # Extra flags passed directly to complexipy
       extra_flags: ""
 
+  # ── shellmetrics Complexity — Bash/Shell ──────────────────────────────────
+  # Cyclomatic complexity analysis for shell scripts.
+  # shellmetrics reports CCN per function; verify-ci.sh fails when max CCN
+  # exceeds threshold.
+  #
+  # Install: curl -fsSL https://git.io/shellmetrics -o ~/bin/shellmetrics && chmod +x ~/bin/shellmetrics
+  # Project: https://github.com/shellspec/shellmetrics
+  #
+  - name: shellmetrics-complexity
+    enabled: false
+    description: "Cyclomatic complexity analysis for Bash/shell scripts"
+    command: "shellmetrics"
+    install_hint: "curl -fsSL https://git.io/shellmetrics -o ~/bin/shellmetrics && chmod +x ~/bin/shellmetrics"
+    project_url: "https://github.com/shellspec/shellmetrics"
+    options:
+      # Enforced max CCN per parsed function
+      threshold: 15
+      # File extensions to analyze (space-separated)
+      file_types: "sh bash"
+      # Paths to analyze (space-separated, relative to project root)
+      paths: "."
+      # Extra flags passed directly to shellmetrics (for example --shell bash)
+      extra_flags: ""
+      # Paths to exclude (space-separated glob patterns)
+      exclude: "node_modules .git"
+
   # ── File Size — Component / File Length Limits ───────────────────────────
   # Catches the "one giant file" problem — especially common in React/TSX
   # where AI piles everything into a single component. No external tool
