@@ -18,10 +18,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Checkout shellmetrics
+        uses: actions/checkout@v4
+        with:
+          repository: shellspec/shellmetrics
+          ref: b3bfff2af6880443112cdbf2ea449440b30ab9b0
+          path: .ci/shellmetrics
+          persist-credentials: false
+
       - name: Install shell tooling
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt
+
+      - name: Install CLARE extension tooling
+        run: |
+          npm ci
+          mkdir -p "$HOME/bin"
+          install -m 0755 .ci/shellmetrics/shellmetrics "$HOME/bin/shellmetrics"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
 
       - name: Make scripts executable
         run: |

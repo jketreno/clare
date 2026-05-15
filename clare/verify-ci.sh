@@ -569,14 +569,25 @@ run_node_lint_checks() {
   local -a ignore_patterns=("$@")
   local fix_flag=""
   $FIX_MODE && fix_flag="--fix"
+  local has_eslint_config=false
 
-  if node -e "require.resolve('eslint/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
+  if [[ -f "$PROJECT_ROOT/.eslintrc.js" ||
+    -f "$PROJECT_ROOT/.eslintrc.cjs" ||
+    -f "$PROJECT_ROOT/.eslintrc.json" ||
+    -f "$PROJECT_ROOT/eslint.config.js" ||
+    -f "$PROJECT_ROOT/eslint.config.mjs" ||
+    -f "$PROJECT_ROOT/eslint.config.cjs" ]]; then
+    has_eslint_config=true
+  fi
+
+  if [[ "$has_eslint_config" == "true" ]] \
+    && node -e "require.resolve('eslint/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
     local eslint_ignore_flags=""
     if [[ "$is_framework_repo" == "false" ]]; then
       append_eslint_ignore_flags eslint_ignore_flags "${ignore_patterns[@]}"
     fi
     run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag$eslint_ignore_flags 2>&1" || true
-  elif [[ -f "$PROJECT_ROOT/.eslintrc.js" || -f "$PROJECT_ROOT/.eslintrc.json" || -f "$PROJECT_ROOT/eslint.config.js" ]]; then
+  elif [[ "$has_eslint_config" == "true" ]]; then
     warn "ESLint config found but ESLint not installed. Run: npm install"
   fi
 
