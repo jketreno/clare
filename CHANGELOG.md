@@ -2,6 +2,12 @@
 
 All notable user-facing changes to this project are documented in this file.
 
+## v1.4.1 - 2026-05-15
+
+### Fixed
+
+- **Installer extension setup:** Fixed interactive extension selection so entered choices such as `1 3 4 5` are preserved and enabled instead of being treated as an empty selection.
+
 ## v1.4.0 - 2026-05-15
 
 ### Added
