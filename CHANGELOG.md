@@ -2,6 +2,25 @@
 
 All notable user-facing changes to this project are documented in this file.
 
+## v1.4.0 - 2026-05-15
+
+### Added
+
+- **Complexity extension coverage expanded:** Added shellmetrics complexity checks for Bash/Shell and strengthened Go/Python complexity enforcement with fixture validation.
+- **Troubleshooting guide:** Added setup and tooling troubleshooting documentation with cross-links from onboarding docs.
+
+### Changed
+
+- **verify-ci.sh hardening:** Improved ESLint v9 fallback behavior, repo-local temporary ignore handling, untracked-file scanning stability, and lint dependency checks with fewer side effects.
+- **Installer safety and parity:** The installer now requires confirmation for dirty target repositories, initializes extension selection safely, enforces agent environment parity, and migrates legacy lizard configuration to current complexity extensions.
+- **File-size enforcement:** Large generated or framework files now require structural refactoring toward the configured size target.
+- **Agent instruction parity:** Codex, Claude, Cursor, and Copilot instructions remain aligned across root and install payloads.
+
+### Fixed
+
+- Prevented extension warning output from corrupting verify-ci.sh file collection.
+- Fixed installer setup crashes caused by unset extension-selection state.
+
 ## v1.3.0 - 2026-05-08
 
 ### Added
