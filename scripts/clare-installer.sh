@@ -957,17 +957,17 @@ setup_print_extension_catalog() {
 
 setup_collect_extension_selection() {
   local selection_ref="$1"
-  local selection=""
+  local selected_input=""
 
   if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
     printf "${CYAN}  Enter numbers to enable (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
-    read -r selection </dev/tty
+    read -r selected_input </dev/tty
   elif [[ "$YES" != "true" ]]; then
     info "No TTY detected; skipping interactive extension selection"
   fi
   echo ""
 
-  printf -v "$selection_ref" '%s' "$selection"
+  printf -v "$selection_ref" '%s' "$selected_input"
 }
 
 setup_enable_selected_extensions() {
