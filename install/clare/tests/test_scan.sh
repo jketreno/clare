@@ -9,7 +9,7 @@ if [[ ! -f "$SCRIPT" ]]; then
 fi
 
 # Ensure JSON mode runs
-bash "$SCRIPT" --json > /tmp/clare-scan.json
+bash "$SCRIPT" --json >/tmp/clare-scan.json
 jq . /tmp/clare-scan.json >/dev/null 2>&1 || {
   echo "JSON output invalid or jq not installed; printing raw output:" >&2
   cat /tmp/clare-scan.json
