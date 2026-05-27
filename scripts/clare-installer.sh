@@ -30,6 +30,7 @@ FORCE=false
 YES=false
 EXTRACT_PATH=""
 INSTALL_EXAMPLES_PATH=""
+INSTALL_SKILLS=""
 RUN_SETUP=true
 SETUP_ONLY=false
 UPDATE=false
@@ -738,6 +739,50 @@ setup_maybe_migrate_legacy_extensions() {
 
 SETUP_INSTALLED_SKILLS=""
 
+install_skill_item() {
+  # install_skill_item <src_file> <name> <prompts_dir> <claude_commands_dir> <vscode_prompts_dir> <codex_skills_dir> <cursor_rules_dir>
+  local src_file="$1"
+  shift
+  local name="$1"
+  shift
+  local prompts_dir="$1"
+  shift
+  local claude_commands_dir="$1"
+  shift
+  local vscode_prompts_dir="$1"
+  shift
+  local codex_skills_dir="$1"
+  shift
+  local cursor_rules_dir="$1"
+  shift
+
+  cp "$src_file" "$prompts_dir/${name}.prompt.md"
+  cp "$src_file" "$claude_commands_dir/${name}.md"
+  cp "$src_file" "$vscode_prompts_dir/${name}.prompt.md"
+  if [[ -d "$codex_skills_dir" ]]; then
+    mkdir -p "$codex_skills_dir/$name"
+    cp "$src_file" "$codex_skills_dir/$name/SKILL.md"
+  fi
+
+  {
+    echo "---"
+    echo "description: CLARE skill mirror for $name"
+    echo "alwaysApply: false"
+    echo "---"
+    echo ""
+    cat "$src_file"
+  } >"$cursor_rules_dir/skill-${name}.mdc"
+
+  success "Installed: .github/prompts/${name}.prompt.md"
+  success "Mirrored: .claude/commands/${name}.md"
+  success "Mirrored: .cursor/rules/skill-${name}.mdc"
+  success "Mirrored: .vscode/prompts/${name}.prompt.md"
+  if [[ -d "$codex_skills_dir" ]]; then
+    success "Mirrored: .codex/skills/${name}/SKILL.md"
+  fi
+  SETUP_INSTALLED_SKILLS="$SETUP_INSTALLED_SKILLS $name"
+}
+
 setup_install_skills_from_arrays() {
   local label="$1"
   shift
@@ -771,12 +816,16 @@ setup_install_skills_from_arrays() {
   done
 
   local selection
-  selection=""
-  if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
-    printf "${CYAN}  Enter numbers to install (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
-    read -r selection </dev/tty
-  elif [[ "$YES" != "true" ]]; then
-    info "No TTY detected; skipping interactive skill selection"
+  selection="${INSTALL_SKILLS:-}"
+  if [[ -z "$selection" ]]; then
+    if [[ "$YES" != "true" && "$HAS_TTY" == "true" ]]; then
+      printf "${CYAN}  Enter numbers to install (space-separated), 'all', or press ENTER to skip: ${NC}" >/dev/tty
+      read -r selection </dev/tty
+    elif [[ "$YES" != "true" ]]; then
+      info "No TTY detected; skipping interactive skill selection"
+    fi
+  else
+    info "Auto-selecting skills: $selection"
   fi
   echo ""
 
@@ -818,35 +867,9 @@ setup_install_skills_from_arrays() {
     mkdir -p "$codex_skills_dir"
   fi
 
-  local idx name src_file
+  local idx
   for idx in "${to_install[@]}"; do
-    name="${_names[$idx]}"
-    src_file="${_files[$idx]}"
-    cp "$src_file" "$prompts_dir/${name}.prompt.md"
-    cp "$src_file" "$claude_commands_dir/${name}.md"
-    cp "$src_file" "$vscode_prompts_dir/${name}.prompt.md"
-    if [[ -d "$codex_skills_dir" ]]; then
-      mkdir -p "$codex_skills_dir/$name"
-      cp "$src_file" "$codex_skills_dir/$name/SKILL.md"
-    fi
-
-    {
-      echo "---"
-      echo "description: CLARE skill mirror for $name"
-      echo "alwaysApply: false"
-      echo "---"
-      echo ""
-      cat "$src_file"
-    } >"$cursor_rules_dir/skill-${name}.mdc"
-
-    success "Installed: .github/prompts/${name}.prompt.md"
-    success "Mirrored: .claude/commands/${name}.md"
-    success "Mirrored: .cursor/rules/skill-${name}.mdc"
-    success "Mirrored: .vscode/prompts/${name}.prompt.md"
-    if [[ -d "$codex_skills_dir" ]]; then
-      success "Mirrored: .codex/skills/${name}/SKILL.md"
-    fi
-    SETUP_INSTALLED_SKILLS="$SETUP_INSTALLED_SKILLS $name"
+    install_skill_item "${_files[$idx]}" "${_names[$idx]}" "$prompts_dir" "$claude_commands_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$cursor_rules_dir"
   done
 }
 
@@ -1138,6 +1161,10 @@ while [[ $# -gt 0 ]]; do
     --setup-only)
       SETUP_ONLY=true
       shift
+      ;;
+    --install-skill)
+      INSTALL_SKILLS="${2:-}"
+      shift 2
       ;;
     --update)
       UPDATE=true

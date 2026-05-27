@@ -8,6 +8,11 @@
     "redhat.vscode-yaml",
     "ms-python.python",
     "ms-python.vscode-pylance",
-    "tamasfe.even-better-toml"
+    "tamasfe.even-better-toml",
+    "eamodio.gitlens",
+    "EditorConfig.EditorConfig",
+    "timonwong.shellcheck",
+    "ms-azuretools.vscode-docker",
+    "yzhang.markdown-all-in-one"
   ]
 }
