@@ -1,0 +1,34 @@
+# Minimal Dockerfile for running CLARE verification steps in isolation
+# Base: Node (includes npm), add Python and common CLI tools used by verify scripts
+
+FROM node:18-bullseye
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      python3 python3-pip git curl ca-certificates gnupg lsb-release \
+      jq ripgrep wget unzip build-essential procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yq (mikefarah) and make available
+RUN YQ_VERSION=v4.41.1 && \
+    curl -L -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" && \
+    chmod +x /usr/local/bin/yq
+
+# Install shfmt (optional) via prebuilt binary if available
+RUN SHFMT_VER=v3.9.0 || true
+RUN if command -v go >/dev/null 2>&1; then \
+      go install mvdan.cc/sh/v3/cmd/shfmt@latest || true; \
+    fi || true
+
+# Optional Python tools that are commonly used by CLARE verification
+RUN python3 -m pip install --no-cache-dir pyyaml || true
+
+# Create a non-root user for safety (optional)
+RUN useradd -m --uid 1000 claresh
+USER claresh
+WORKDIR /work
+
+# Entrypoint: run verify-ci.sh if present in mounted project
+ENTRYPOINT ["/bin/bash", "-lc", "if [ -f ./clare/verify-ci.sh ]; then bash ./clare/verify-ci.sh --fast; else echo 'No clare/verify-ci.sh found'; fi"]
