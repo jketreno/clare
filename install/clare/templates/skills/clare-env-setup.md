@@ -27,6 +27,17 @@ Notes
 - The scanner is intentionally conservative and will only auto-apply VS Code recommendations when explicitly requested.
 - The included `install/Dockerfile.clare` is a suggested, minimal image to run `./clare/verify-ci.sh --fast` without polluting the host. Edit the Dockerfile to add or remove language runtimes as needed for your environment.
 
+Dockerfile details
+- The provided `install/Dockerfile.clare` now installs the Go toolchain from the official tarball by default (build-arg `GO_VERSION=1.22.9`). This enables language checks that require `go` and binaries installed via `go install` (for example `shfmt`) to be available inside the container. To override the Go version or skip installation, use `--build-arg GO_VERSION=...` or an empty value to skip.
+
+Installer usage
+- The installer supports non-interactive skill installation with the `--install-skill` flag. You can pass a quoted list of numeric indices (as shown during the setup prompt) or `all`. Example:
+
+```bash
+./scripts/clare-installer.sh --target /path/to/project --install-skill "1"
+./scripts/clare-installer.sh --target /path/to/project --install-skill "all"
+```
+
 Outputs
 - Plain text report (default `--report`).
 - JSON (`--json`) with `fileCounts`, `configsFound`, `verifyTools`, and `recommendedExtensions` sections.
