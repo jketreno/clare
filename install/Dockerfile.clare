@@ -16,11 +16,29 @@ RUN YQ_VERSION=v4.41.1 && \
     curl -L -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" && \
     chmod +x /usr/local/bin/yq
 
-# Install shfmt (optional) via prebuilt binary if available
-RUN SHFMT_VER=v3.9.0 || true
+# Install Go from official tarball (optional - override GO_VERSION at build time)
+ARG GO_VERSION=1.22.9
+RUN set -eux; \
+    if [ -n "${GO_VERSION:-}" ]; then \
+      echo "Installing Go ${GO_VERSION}"; \
+      curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"; \
+      rm -rf /usr/local/go; \
+      tar -C /usr/local -xzf /tmp/go.tar.gz; \
+      rm -f /tmp/go.tar.gz; \
+    else \
+      echo 'GO_VERSION not set; skipping Go install'; \
+    fi
+
+# Ensure Go binaries are in PATH and installs via `go install` land in /usr/local/bin
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOBIN=/usr/local/bin
+
+# Install shfmt via `go install` if Go is available; otherwise skip
 RUN if command -v go >/dev/null 2>&1; then \
       go install mvdan.cc/sh/v3/cmd/shfmt@latest || true; \
-    fi || true
+    else \
+      echo 'go not found; skipping shfmt install via go'; \
+    fi
 
 # Optional Python tools that are commonly used by CLARE verification
 RUN python3 -m pip install --no-cache-dir pyyaml || true
