@@ -320,7 +320,9 @@ run_eslint_complexity_check() {
 
   local eslint_cmd=()
   if [[ "$command" == "npx" ]]; then
-    eslint_cmd=("npx" "--no-install" "eslint")
+    if ! node_tool_command eslint_cmd "eslint" "eslint"; then
+      eslint_cmd=("npx" "--no-install" "eslint")
+    fi
   else
     eslint_cmd=("$command")
   fi
@@ -563,6 +565,87 @@ append_eslint_ignore_flags() {
   printf -v "$out_ref" '%s' "$flags"
 }
 
+node_supports_flag() {
+  local flag="$1"
+  node "$flag" -e "" >/dev/null 2>&1
+}
+
+default_node_tool_flags() {
+  if [[ -n "${CLARE_DEFAULT_NODE_TOOL_FLAGS_COMPUTED:-}" ]]; then
+    printf '%s' "${CLARE_DEFAULT_NODE_TOOL_FLAGS:-}"
+    return 0
+  fi
+
+  CLARE_DEFAULT_NODE_TOOL_FLAGS_COMPUTED=true
+  CLARE_DEFAULT_NODE_TOOL_FLAGS=""
+
+  # Avoid known V8 Turboshaft crashes in Node-based tooling while still allowing
+  # projects to opt out by setting CLARE_NODE_TOOL_FLAGS explicitly.
+  if node_supports_flag "--no-turboshaft"; then
+    CLARE_DEFAULT_NODE_TOOL_FLAGS="--no-turboshaft"
+  fi
+
+  printf '%s' "$CLARE_DEFAULT_NODE_TOOL_FLAGS"
+}
+
+node_tool_flags() {
+  if [[ -n "${CLARE_NODE_TOOL_FLAGS+x}" ]]; then
+    printf '%s' "$CLARE_NODE_TOOL_FLAGS"
+  else
+    default_node_tool_flags
+  fi
+}
+
+resolve_node_package_bin() {
+  local package_name="$1"
+  local bin_name="$2"
+
+  node - "$PROJECT_ROOT" "$package_name" "$bin_name" <<'NODE'
+const path = require('node:path');
+
+const [projectRoot, packageName, binName] = process.argv.slice(2);
+const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+  paths: [projectRoot],
+});
+const packageJson = require(packageJsonPath);
+const bin = packageJson.bin;
+
+let binPath;
+if (typeof bin === 'string') {
+  binPath = bin;
+} else if (bin && typeof bin === 'object') {
+  binPath = bin[binName] || Object.values(bin)[0];
+}
+
+if (!binPath) {
+  process.exit(1);
+}
+
+console.log(path.resolve(path.dirname(packageJsonPath), binPath));
+NODE
+}
+
+node_tool_command() {
+  local out_ref="$1"
+  local package_name="$2"
+  local bin_name="$3"
+  local -n out_cmd="$out_ref"
+  local bin_path flags
+
+  out_cmd=()
+  bin_path="$(resolve_node_package_bin "$package_name" "$bin_name")" || return 1
+  flags="$(node_tool_flags)"
+
+  out_cmd=("node")
+  if [[ -n "$flags" ]]; then
+    # Intentional word splitting for caller-provided Node/V8 flag strings.
+    # shellcheck disable=SC2206
+    local flag_parts=($flags)
+    out_cmd+=("${flag_parts[@]}")
+  fi
+  out_cmd+=("$bin_path")
+}
+
 run_node_lint_checks() {
   local is_framework_repo="$1"
   shift
@@ -586,7 +669,15 @@ run_node_lint_checks() {
     if [[ "$is_framework_repo" == "false" ]]; then
       append_eslint_ignore_flags eslint_ignore_flags "${ignore_patterns[@]}"
     fi
-    run_check "ESLint" "cd '$PROJECT_ROOT' && npx eslint . $fix_flag$eslint_ignore_flags 2>&1" || true
+    local eslint_cmd=()
+    local eslint_cmd_string=""
+    if node_tool_command eslint_cmd "eslint" "eslint"; then
+      printf -v eslint_cmd_string '%q ' "${eslint_cmd[@]}"
+      run_check "ESLint" "cd '$PROJECT_ROOT' && $eslint_cmd_string. $fix_flag$eslint_ignore_flags 2>&1" || true
+    else
+      fail "ESLint"
+      echo "ESLint is installed, but its executable could not be resolved from package.json." >&2
+    fi
   elif [[ "$has_eslint_config" == "true" ]]; then
     warn "ESLint config found but ESLint not installed. Run: npm install"
   fi
@@ -606,15 +697,39 @@ run_node_lint_checks() {
         echo "$pattern" >>"$prettier_ignore_file"
       done
 
-      run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag --ignore-path '$prettier_ignore_file' . 2>&1" || true
+      local prettier_cmd=()
+      local prettier_cmd_string=""
+      if node_tool_command prettier_cmd "prettier" "prettier"; then
+        printf -v prettier_cmd_string '%q ' "${prettier_cmd[@]}"
+        run_check "Prettier" "cd '$PROJECT_ROOT' && $prettier_cmd_string$prettier_flag --ignore-path '$prettier_ignore_file' . 2>&1" || true
+      else
+        fail "Prettier"
+        echo "Prettier is installed, but its executable could not be resolved from package.json." >&2
+      fi
       rm -f "$prettier_ignore_file"
     else
-      run_check "Prettier" "cd '$PROJECT_ROOT' && npx prettier $prettier_flag . 2>&1" || true
+      local prettier_cmd=()
+      local prettier_cmd_string=""
+      if node_tool_command prettier_cmd "prettier" "prettier"; then
+        printf -v prettier_cmd_string '%q ' "${prettier_cmd[@]}"
+        run_check "Prettier" "cd '$PROJECT_ROOT' && $prettier_cmd_string$prettier_flag . 2>&1" || true
+      else
+        fail "Prettier"
+        echo "Prettier is installed, but its executable could not be resolved from package.json." >&2
+      fi
     fi
   fi
 
   if node -e "require.resolve('typescript/package.json', { paths: ['$PROJECT_ROOT'] })" 2>/dev/null; then
-    run_check "TypeScript (no-emit)" "cd '$PROJECT_ROOT' && npx tsc --noEmit 2>&1" || true
+    local tsc_cmd=()
+    local tsc_cmd_string=""
+    if node_tool_command tsc_cmd "typescript" "tsc"; then
+      printf -v tsc_cmd_string '%q ' "${tsc_cmd[@]}"
+      run_check "TypeScript (no-emit)" "cd '$PROJECT_ROOT' && $tsc_cmd_string--noEmit 2>&1" || true
+    else
+      fail "TypeScript (no-emit)"
+      echo "TypeScript is installed, but tsc could not be resolved from package.json." >&2
+    fi
   fi
 }
 
