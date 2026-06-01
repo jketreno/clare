@@ -122,6 +122,7 @@ validate_typescript() {
   local fail_project="$TMP_ROOT/ts-fail"
   mkdir -p "$fail_project/src"
   copy_core_clare_files "$fail_project"
+  ln -s "$REPO_ROOT/node_modules" "$fail_project/node_modules"
   write_extensions_file "$fail_project" "eslint-complexity" "npx" "1" "js"
   cat >"$fail_project/eslint.config.js" <<'EOF'
 module.exports = [
@@ -154,6 +155,7 @@ EOF
   local pass_project="$TMP_ROOT/ts-pass"
   mkdir -p "$pass_project/src"
   copy_core_clare_files "$pass_project"
+  ln -s "$REPO_ROOT/node_modules" "$pass_project/node_modules"
   write_extensions_file "$pass_project" "eslint-complexity" "npx" "5" "js"
   cat >"$pass_project/eslint.config.js" <<'EOF'
 module.exports = [
@@ -238,6 +240,10 @@ EOF
 validate_python() {
   if ! command -v complexipy >/dev/null 2>&1; then
     warn "Python validation (complexipy not installed)"
+    return 0
+  fi
+  if ! complexipy --help >/dev/null 2>&1; then
+    warn "Python validation (complexipy is installed but not runnable)"
     return 0
   fi
 
