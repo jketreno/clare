@@ -30,7 +30,7 @@ After any file edit (create/update/delete), run `./clare/verify-ci.sh`.
 
 - If it fails → fix the issues → run again → repeat until exit code 0
 - Never skip or bypass this script
-- Before sending a final response for an implementation task, include: verify-ci.sh result (PASS/FAIL), command used, and whether `--fast` or `--fix` was used (if applicable)
+- Before sending a final response for an implementation task, include: verify-ci.sh result (PASS/FAIL), command used, and whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable)
 - If running in read-only mode (Ask mode), explicitly state: "verify-ci.sh not run because session is read-only."
 - Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` is the source of truth
 

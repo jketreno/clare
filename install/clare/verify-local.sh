@@ -16,6 +16,7 @@
 # Available variables:
 #   PROJECT_ROOT   — absolute path to the project root
 #   FAST_MODE      — true if --fast was passed (skip slow checks)
+#   FAIL_FAST      — true if --fail-fast was passed (stop at first failure)
 #   FIX_MODE       — true if --fix was passed (auto-fix where possible)
 #   HAS_NODE       — true if package.json detected
 #   HAS_PYTHON     — true if Python project detected

@@ -37,7 +37,11 @@ fi
 FAST_MODE=false
 FIX_MODE=false
 INCLUDE_UNTRACKED=true
+FAIL_FAST=false
+SUMMARY_LINES=30
 FAILED_CHECKS=()
+declare -A CHECK_COMMANDS=()
+declare -A FAILED_OUTPUTS=()
 
 usage() {
   cat <<'EOF'
@@ -48,6 +52,7 @@ Run local CI/CD checks and enforce CLARE constraints.
 Options:
   --fast        Skip slow checks (architecture tests)
   --fix         Auto-fix lint issues where supported
+  --fail-fast   Stop at the first failing check and print a concise summary
   --exclude-untracked
                Check only tracked files (exclude untracked files)
   -h, --help    Show this help message and exit
@@ -59,6 +64,7 @@ for arg in "$@"; do
   case "$arg" in
     --fast) FAST_MODE=true ;;
     --fix) FIX_MODE=true ;;
+    --fail-fast) FAIL_FAST=true ;;
     --exclude-untracked) INCLUDE_UNTRACKED=false ;;
     -h | --help)
       usage
@@ -120,12 +126,27 @@ section() { echo -e "\n${BLUE}── $1 ──${NC}"; }
 run_check() {
   local name="$1"
   local cmd="$2"
+  CHECK_COMMANDS["$name"]="$cmd"
   info "Running: $cmd"
-  if bash -c "$cmd"; then
+
+  local out_file
+  out_file="$(mktemp)"
+
+  # Execute the command and capture stdout+stderr to a temp file
+  if bash -c "$cmd" >"$out_file" 2>&1; then
     pass "$name"
+    rm -f "$out_file"
     return 0
   else
     fail "$name"
+    FAILED_OUTPUTS["$name"]="$out_file"
+    FAILED_CHECKS+=("$name")
+    if $FAIL_FAST; then
+      echo ""
+      echo -e "${RED}Fail-fast triggered: stopping at first failure (${name}).${NC}"
+      print_failure_summary
+      exit 1
+    fi
     return 1
   fi
 }
@@ -1042,16 +1063,28 @@ run_extension() {
 
   # Check if the tool is installed
   if ! command -v "$command" &>/dev/null; then
-    fail "Extension '$name': '$command' not found"
-    echo ""
-    echo -e "${RED}   '$name' is enabled in clare/extensions.yml but '$command' is not installed.${NC}"
-    echo ""
-    echo -e "${RED}   To install:  ${YELLOW}${install_hint}${NC}"
-    [[ -n "$url" ]] && echo -e "${RED}   Project:     ${YELLOW}${url}${NC}"
-    echo ""
-    echo -e "${RED}   To disable this extension:${NC}"
-    echo -e "${RED}     Edit clare/extensions.yml and set enabled: false for '$name'${NC}"
-    echo ""
+    local ext_id="Extension: $name"
+    fail "$ext_id"
+    local out_file
+    out_file="$(mktemp)"
+    {
+      echo ""
+      echo "  '$name' is enabled in clare/extensions.yml but '$command' is not installed."
+      echo ""
+      echo "  To install:  $install_hint"
+      [[ -n "$url" ]] && echo "  Project:     $url"
+      echo ""
+      echo "  To disable this extension:"
+      echo "    Edit clare/extensions.yml and set enabled: false for '$name'"
+      echo ""
+    } >"$out_file"
+    FAILED_OUTPUTS["$ext_id"]="$out_file"
+    CHECK_COMMANDS["$ext_id"]="Install: $install_hint"
+    FAILED_CHECKS+=("$ext_id")
+    if $FAIL_FAST; then
+      print_failure_summary
+      exit 1
+    fi
     return 1
   fi
 
@@ -1194,6 +1227,68 @@ run_file_size_check() {
   fi
 }
 
+# Suggest a quick-fix command for a failing check name or fallback to the original command
+suggest_quick_command() {
+  local name="$1"
+  local cmd="$2"
+  case "$name" in
+    *ESLint* | *eslint* | ESLint | eslint)
+      echo "cd '$PROJECT_ROOT' && npx eslint --fix ."
+      ;;
+    *Prettier* | *prettier* | Prettier | prettier)
+      echo "cd '$PROJECT_ROOT' && npx prettier --write ."
+      ;;
+    *TypeScript* | *tsc* | TypeScript | tsc)
+      echo "cd '$PROJECT_ROOT' && npx tsc --noEmit"
+      ;;
+    *Ruff* | *ruff*)
+      echo "cd '$PROJECT_ROOT' && ruff check --fix ."
+      ;;
+    *Mypy* | *mypy*)
+      echo "cd '$PROJECT_ROOT' && mypy ."
+      ;;
+    *pytest* | *Pytest* | pytest | Pytest)
+      echo "cd '$PROJECT_ROOT' && pytest -q"
+      ;;
+    *'npm test'* | 'npm test' | *"npm test"*)
+      echo "cd '$PROJECT_ROOT' && npm test"
+      ;;
+    *Go* | *golang* | go)
+      echo "cd '$PROJECT_ROOT' && go test ./..."
+      ;;
+    *Cargo* | *cargo*)
+      echo "cd '$PROJECT_ROOT' && cargo test"
+      ;;
+    *)
+      # Fallback: show the original command (clean up obvious redirections)
+      echo "${cmd// 2>&1/}"
+      ;;
+  esac
+}
+
+print_failure_summary() {
+  local lines="$SUMMARY_LINES"
+  echo ""
+  echo -e "${BLUE}════════════════════════════════════════════${NC}"
+  echo -e "${RED}FAILURE SUMMARY:${NC}"
+  for name in "${FAILED_CHECKS[@]}"; do
+    local out="${FAILED_OUTPUTS[$name]:-}"
+    local cmd="${CHECK_COMMANDS[$name]:-}"
+    echo -e "${RED}• $name${NC}"
+    local suggestion
+    suggestion="$(suggest_quick_command "$name" "$cmd")"
+    echo -e "  Quick command: ${YELLOW}${suggestion}${NC}"
+    if [[ -n "$out" && -f "$out" ]]; then
+      echo "  Output (first $lines lines):"
+      sed -n "1,${lines}p" "$out" | sed 's/^/    /'
+      echo "  Full log: $out"
+    else
+      echo "  No captured output available."
+    fi
+    echo ""
+  done
+}
+
 # ─── Local Project Checks ────────────────────────────────────────────────────
 # Source verify-local.sh if it exists. That file is project-owned (never
 # overwritten by CLARE updates) and can call run_check, pass, fail, info,
@@ -1251,6 +1346,8 @@ main() {
       echo -e "${RED}   • $check${NC}"
     done
     echo ""
+    # Print compact failure summary with quick-fix suggestions and snippets
+    print_failure_summary
     echo -e "${RED}   Fix the issues above and run this script again.${NC}"
     echo -e "${RED}   Work is NOT complete until all checks pass.${NC}"
     exit 1

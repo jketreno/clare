@@ -16,7 +16,7 @@ Do not report implementation work complete while `./clare/verify-ci.sh` fails.
 Before sending a final response for an implementation task, include:
 - verify-ci.sh result: PASS/FAIL
 - command used
-- whether `--fast` or `--fix` was used, if applicable
+- whether `--fast`, `--fix`, or `--fail-fast` was used, if applicable
 
 If running in read-only mode, explicitly state: `verify-ci.sh not run because session is read-only.`
 
