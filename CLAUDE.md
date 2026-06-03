@@ -10,6 +10,7 @@ After any file edit (create/update/delete), run `./clare/verify-ci.sh`.
 ./clare/verify-ci.sh        # Full check
 ./clare/verify-ci.sh --fast # Skip slow architecture tests
 ./clare/verify-ci.sh --fix  # Auto-fix lint issues
+./clare/verify-ci.sh --fail-fast # Stop at the first failing check and show a concise summary
 ```
 
 If it fails → fix the issues → run again → repeat until exit code 0.
@@ -17,7 +18,7 @@ If it fails → fix the issues → run again → repeat until exit code 0.
 Before sending a final response for an implementation task, include:
 - verify-ci.sh result: PASS/FAIL
 - command used
-- whether `--fast` or `--fix` was used (if applicable)
+- whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable)
 
 If running in read-only mode (Ask mode), explicitly state: "verify-ci.sh not run because session is read-only."
 
