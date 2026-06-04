@@ -88,9 +88,7 @@ STAGE_4_STEPS=(
 STAGE_5_STEPS=(
   "Autonomy boundaries|check_autonomy_boundaries"
 )
-STAGE_6_STEPS=(
-  "Configured extensions|check_extensions"
-)
+STAGE_6_STEPS=()
 STAGE_7_STEPS=(
   "verify-local.sh|source_local_checks"
 )
@@ -262,11 +260,15 @@ run_stage_step() {
   local step_number="$2"
   local -n stage_steps="STAGE_${stage_number}_STEPS"
   local step_entry="${stage_steps[$((step_number - 1))]}"
-  local name="${step_entry%%|*}"
-  local fn="${step_entry#*|}"
+  local name fn arg
+  IFS='|' read -r name fn arg <<<"$step_entry"
 
   info "Running stage ${stage_number}.${step_number}: $name"
-  "$fn"
+  if [[ -n "${arg:-}" ]]; then
+    "$fn" "$arg"
+  else
+    "$fn"
+  fi
 }
 
 run_stage() {
@@ -1185,6 +1187,39 @@ print_install_hint() {
   done <<<"$hint"
 }
 
+refresh_extension_steps() {
+  local extensions_file="$PROJECT_ROOT/clare/extensions.yml"
+  STAGE_6_STEPS=()
+  [[ -f "$extensions_file" ]] || return 0
+
+  local in_extension=false
+  local ext_name="" ext_enabled=""
+
+  append_pending_extension_step() {
+    if [[ -n "$ext_name" && "$ext_enabled" == "true" ]]; then
+      STAGE_6_STEPS+=("$ext_name|check_extension_by_name|$ext_name")
+    fi
+  }
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.*) ]]; then
+      append_pending_extension_step
+      ext_name="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+      ext_enabled=""
+      in_extension=true
+      continue
+    fi
+
+    $in_extension || continue
+
+    if [[ "$line" =~ ^[[:space:]]*enabled:[[:space:]]*(.*) ]]; then
+      ext_enabled="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    fi
+  done <"$extensions_file"
+
+  append_pending_extension_step
+}
+
 check_extensions() {
   local extensions_file="$PROJECT_ROOT/clare/extensions.yml"
   [[ -f "$extensions_file" ]] || return 0
@@ -1248,6 +1283,70 @@ check_extensions() {
   done <"$extensions_file"
 
   # Process the last extension
+  process_pending_extension
+}
+
+check_extension_by_name() {
+  local requested_name="$1"
+  local extensions_file="$PROJECT_ROOT/clare/extensions.yml"
+  [[ -f "$extensions_file" ]] || return 0
+
+  local in_extension=false
+  local ext_name="" ext_enabled="" ext_command="" ext_install="" ext_url=""
+  local ext_threshold="" ext_paths="" ext_extra="" ext_file_types="" ext_exclude=""
+  local ext_count_comments="true"
+
+  process_pending_extension() {
+    if [[ "$ext_name" == "$requested_name" && "$ext_enabled" == "true" ]]; then
+      run_extension "$ext_name" "$ext_command" "$ext_install" "$ext_url" \
+        "$ext_threshold" "$ext_paths" "$ext_extra" \
+        "$ext_file_types" "$ext_exclude" "$ext_count_comments"
+    fi
+  }
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.*) ]]; then
+      process_pending_extension
+      ext_name="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+      ext_enabled=""
+      ext_command=""
+      ext_install=""
+      ext_url=""
+      ext_threshold=""
+      ext_paths=""
+      ext_extra=""
+      ext_file_types=""
+      ext_exclude=""
+      ext_count_comments="true"
+      in_extension=true
+      continue
+    fi
+
+    $in_extension || continue
+
+    if [[ "$line" =~ ^[[:space:]]*enabled:[[:space:]]*(.*) ]]; then
+      ext_enabled="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*command:[[:space:]]*(.*) ]]; then
+      ext_command="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*install_hint:[[:space:]]*(.*) ]]; then
+      ext_install="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*project_url:[[:space:]]*(.*) ]]; then
+      ext_url="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*threshold:[[:space:]]*(.*) ]]; then
+      ext_threshold="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*paths:[[:space:]]*(.*) ]]; then
+      ext_paths="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*extra_flags:[[:space:]]*(.*) ]]; then
+      ext_extra="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*file_types:[[:space:]]*(.*) ]]; then
+      ext_file_types="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*exclude:[[:space:]]*(.*) ]]; then
+      ext_exclude="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ ^[[:space:]]*count_comments:[[:space:]]*(.*) ]]; then
+      ext_count_comments="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
+    fi
+  done <"$extensions_file"
+
   process_pending_extension
 }
 
@@ -1507,6 +1606,8 @@ source_local_checks() {
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
+  refresh_extension_steps
+
   if $LIST_TESTS; then
     print_stage_list
     exit 0
