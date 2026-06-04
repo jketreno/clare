@@ -738,10 +738,21 @@ node_supports_flag() {
 }
 
 default_node_tool_flags() {
+  # node_tool_flags is invoked via command substitution ($(...)), so any cache
+  # written here would die with the subshell and never be reused. Memoize in a
+  # module-level global that is populated once, before the lint loop, by
+  # init_node_tool_flags — keeping the node_supports_flag probe to a single run.
   if [[ -n "${CLARE_DEFAULT_NODE_TOOL_FLAGS_COMPUTED:-}" ]]; then
     printf '%s' "${CLARE_DEFAULT_NODE_TOOL_FLAGS:-}"
     return 0
   fi
+
+  init_node_tool_flags
+  printf '%s' "${CLARE_DEFAULT_NODE_TOOL_FLAGS:-}"
+}
+
+init_node_tool_flags() {
+  [[ -n "${CLARE_DEFAULT_NODE_TOOL_FLAGS_COMPUTED:-}" ]] && return 0
 
   CLARE_DEFAULT_NODE_TOOL_FLAGS_COMPUTED=true
   CLARE_DEFAULT_NODE_TOOL_FLAGS=""
@@ -754,8 +765,6 @@ default_node_tool_flags() {
   if [[ "${CLARE_DISABLE_TURBOSHAFT:-}" == "1" ]] && node_supports_flag "--no-turboshaft"; then
     CLARE_DEFAULT_NODE_TOOL_FLAGS="--no-turboshaft"
   fi
-
-  printf '%s' "$CLARE_DEFAULT_NODE_TOOL_FLAGS"
 }
 
 node_tool_flags() {
@@ -1641,6 +1650,11 @@ main() {
 
   cd "$PROJECT_ROOT"
   detect_project
+
+  # Compute Node tool flags once, in the main shell, so the (potentially
+  # node-spawning) Turboshaft probe runs at most once. Calls from inside command
+  # substitutions later only read the already-populated global.
+  $HAS_NODE && init_node_tool_flags
 
   info "Project root: $PROJECT_ROOT"
   $HAS_NODE && info "Detected: Node.js"
