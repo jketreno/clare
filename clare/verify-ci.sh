@@ -13,7 +13,7 @@
 #   ./clare/verify-ci.sh --fast    # Skip slow checks (architecture tests)
 #   ./clare/verify-ci.sh --fix     # Auto-fix linting issues where possible
 #   ./clare/verify-ci.sh --list-tests
-#   ./clare/verify-ci.sh --run-tests 1,3,7
+#   ./clare/verify-ci.sh --run-tests 1,3.1,7
 #
 # Customization:
 #   Add project-specific checks to clare/verify-local.sh (not this file).
@@ -47,7 +47,53 @@ SUMMARY_LINES=30
 FAILED_CHECKS=()
 declare -A CHECK_COMMANDS=()
 declare -A FAILED_OUTPUTS=()
-declare -A SELECTED_STAGE_ENABLED=()
+SELECTED_TEST_REQUESTS=()
+
+# Single source of truth for verification stages and stage steps.
+# The stage number is the array index + 1. Step numbers are each stage's
+# array index + 1. print_stage_list, --run-tests validation, and the main run
+# loop all derive from this — add stages/steps here and nowhere else.
+# Functions are referenced by name only; they are defined later in the file and
+# are not resolved until main() runs the loop.
+STAGES=(
+  "Build"
+  "Linting"
+  "Tests"
+  "Architecture Tests"
+  "CLARE Autonomy Boundaries"
+  "Extensions"
+  "Project-Specific Checks"
+)
+STAGE_1_STEPS=(
+  "Node.js build|check_build_node"
+  "Python syntax check|check_build_python"
+  "Go build|check_build_go"
+  "Rust build|check_build_rust"
+)
+STAGE_2_STEPS=(
+  "Node.js lint/type checks|check_lint_node"
+  "Python lint/type checks|check_lint_python"
+  "Go lint checks|check_lint_go"
+)
+STAGE_3_STEPS=(
+  "Node.js tests|check_tests_node"
+  "Python tests|check_tests_python"
+  "Go tests|check_tests_go"
+  "Rust tests|check_tests_rust"
+)
+STAGE_4_STEPS=(
+  "Node.js architecture tests|check_architecture_node"
+  "Python architecture tests|check_architecture_python"
+)
+STAGE_5_STEPS=(
+  "Autonomy boundaries|check_autonomy_boundaries"
+)
+STAGE_6_STEPS=(
+  "Configured extensions|check_extensions"
+)
+STAGE_7_STEPS=(
+  "verify-local.sh|source_local_checks"
+)
 
 # Failed checks retain their captured output in temp files so the failure summary
 # can print snippets and a "Full log:" path. Clean those up when the script exits
@@ -72,7 +118,7 @@ Options:
   --fail-fast   Stop at the first failing check and print a concise summary
   --list-tests  List numbered verification stages and exit
   --run-tests <csv>
-               Run only selected numbered stages (example: --run-tests 1,3,7)
+               Run selected stages or stage steps in order (example: --run-tests 1,3.1,7)
   --exclude-untracked
                Check only tracked files (exclude untracked files)
   -h, --help    Show this help message and exit
@@ -90,7 +136,7 @@ while [[ $# -gt 0 ]]; do
     --run-tests)
       shift
       if [[ $# -eq 0 || "${1:-}" == --* ]]; then
-        echo "Missing value for --run-tests (expected comma-separated stage numbers)." >&2
+        echo "Missing value for --run-tests (expected comma-separated stage or stage-step numbers)." >&2
         echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
         exit 2
       fi
@@ -161,64 +207,92 @@ warn() { echo -e "${YELLOW}⚠  $1${NC}"; }
 section() { echo -e "\n${BLUE}── $1 ──${NC}"; }
 
 print_stage_list() {
-  cat <<'EOF'
-Available verify-ci stages:
-  1. Build
-  2. Linting
-  3. Tests
-  4. Architecture Tests
-  5. CLARE Autonomy Boundaries
-  6. Extensions
-  7. Project-Specific Checks
-EOF
+  echo "Available verify-ci stages:"
+  local i step_index step_entry
+  for i in "${!STAGES[@]}"; do
+    echo "  $((i + 1)). ${STAGES[$i]}"
+    local -n stage_steps="STAGE_$((i + 1))_STEPS"
+    for step_index in "${!stage_steps[@]}"; do
+      step_entry="${stage_steps[$step_index]}"
+      echo "    $((i + 1)).$((step_index + 1)). ${step_entry%%|*}"
+    done
+  done
 }
 
 parse_selected_stages() {
   local csv="$1"
 
   if [[ -z "$csv" ]]; then
-    echo "Missing value for --run-tests (expected comma-separated stage numbers)." >&2
+    echo "Missing value for --run-tests (expected comma-separated stage or stage-step numbers)." >&2
     echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
     exit 2
   fi
 
-  if [[ ! "$csv" =~ ^[1-9][0-9]*(,[1-9][0-9]*)*$ ]]; then
+  if [[ ! "$csv" =~ ^[1-9][0-9]*(\.[1-9][0-9]*)?(,[1-9][0-9]*(\.[1-9][0-9]*)?)*$ ]]; then
     echo "Invalid --run-tests value: $csv" >&2
-    echo "Expected comma-separated positive integers, for example: --run-tests 1,3,7" >&2
+    echo "Expected comma-separated stage or stage-step numbers, for example: --run-tests 1,3.1,7" >&2
     echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
     exit 2
   fi
 
-  local stage
-  IFS=',' read -r -a requested_stages <<<"$csv"
-  for stage in "${requested_stages[@]}"; do
-    if ((stage < 1 || stage > 7)); then
-      echo "Unknown verify-ci stage number: $stage" >&2
+  local request stage step
+  IFS=',' read -r -a SELECTED_TEST_REQUESTS <<<"$csv"
+  for request in "${SELECTED_TEST_REQUESTS[@]}"; do
+    stage="${request%%.*}"
+    if ((stage < 1 || stage > ${#STAGES[@]})); then
+      echo "Unknown verify-ci stage number: $stage (from $request)" >&2
       echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
       exit 2
     fi
-    SELECTED_STAGE_ENABLED["$stage"]=true
+
+    if [[ "$request" == *.* ]]; then
+      step="${request#*.}"
+      local -n stage_steps="STAGE_${stage}_STEPS"
+      if ((step < 1 || step > ${#stage_steps[@]})); then
+        echo "Unknown verify-ci stage step number: $request" >&2
+        echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
+        exit 2
+      fi
+    fi
   done
 }
 
-stage_selected() {
-  local number="$1"
-  if ! $RUN_SELECTED_STAGES; then
-    return 0
-  fi
-  [[ "${SELECTED_STAGE_ENABLED[$number]:-false}" == "true" ]]
+run_stage_step() {
+  local stage_number="$1"
+  local step_number="$2"
+  local -n stage_steps="STAGE_${stage_number}_STEPS"
+  local step_entry="${stage_steps[$((step_number - 1))]}"
+  local name="${step_entry%%|*}"
+  local fn="${step_entry#*|}"
+
+  info "Running stage ${stage_number}.${step_number}: $name"
+  "$fn"
 }
 
 run_stage() {
-  local number="$1"
-  local name="$2"
-  local fn="$3"
+  local stage_number="$1"
+  local stage_name="${STAGES[$((stage_number - 1))]}"
+  local -n stage_steps="STAGE_${stage_number}_STEPS"
+  local step_index
 
-  if stage_selected "$number"; then
-    "$fn"
-  else
-    info "Skipping stage $number: $name"
-  fi
+  section "$stage_name"
+  for step_index in "${!stage_steps[@]}"; do
+    run_stage_step "$stage_number" "$((step_index + 1))"
+  done
+}
+
+run_selected_tests() {
+  local request stage step
+  for request in "${SELECTED_TEST_REQUESTS[@]}"; do
+    stage="${request%%.*}"
+    if [[ "$request" == *.* ]]; then
+      step="${request#*.}"
+      section "${STAGES[$((stage - 1))]}"
+      run_stage_step "$stage" "$step"
+    else
+      run_stage "$stage"
+    fi
+  done
 }
 
 run_check() {
@@ -902,9 +976,7 @@ detect_project() {
 
 # ─── Check Groups ─────────────────────────────────────────────────────────────
 
-check_build() {
-  section "Build"
-
+check_build_node() {
   if $HAS_NODE; then
     if ! $HAS_NODE_RUNTIME; then
       warn "package.json found but node/npm are not installed; skipping Node.js build checks"
@@ -918,7 +990,9 @@ check_build() {
       fi
     fi
   fi
+}
 
+check_build_python() {
   if $HAS_PYTHON; then
     if [[ -n "$PYTHON_CMD" ]]; then
       run_check "Python syntax check" "$PYTHON_CMD -m compileall '$PROJECT_ROOT' -q 2>&1 | head -20" || true
@@ -926,19 +1000,21 @@ check_build() {
       warn "Python project detected but no Python interpreter found; skipping syntax check"
     fi
   fi
+}
 
+check_build_go() {
   if $HAS_GO; then
     run_check "Go build" "cd '$PROJECT_ROOT' && go build ./... 2>&1" || true
   fi
+}
 
+check_build_rust() {
   if $HAS_RUST; then
     run_check "Cargo build" "cd '$PROJECT_ROOT' && cargo build 2>&1" || true
   fi
 }
 
-check_lint() {
-  section "Linting"
-
+check_lint_node() {
   local framework_repo=false
   if is_clare_framework_repo; then
     framework_repo=true
@@ -966,19 +1042,21 @@ check_lint() {
       run_node_lint_checks "$framework_repo" "${clare_managed_lint_ignore_patterns[@]}"
     fi
   fi
+}
 
+check_lint_python() {
   if $HAS_PYTHON; then
     run_python_lint_checks
   fi
+}
 
+check_lint_go() {
   if $HAS_GO; then
     run_go_lint_checks
   fi
 }
 
-check_tests() {
-  section "Tests"
-
+check_tests_node() {
   if $HAS_NODE; then
     if ! $HAS_NODE_RUNTIME; then
       warn "package.json found but node/npm are not installed; skipping Node.js test checks"
@@ -990,25 +1068,29 @@ check_tests() {
       fi
     fi
   fi
+}
 
+check_tests_python() {
   if $HAS_PYTHON; then
     if command -v pytest &>/dev/null; then
       run_check "pytest" "cd '$PROJECT_ROOT' && pytest --tb=short -q 2>&1" || true
     fi
   fi
+}
 
+check_tests_go() {
   if $HAS_GO; then
     run_check "Go test" "cd '$PROJECT_ROOT' && go test ./... 2>&1" || true
   fi
+}
 
+check_tests_rust() {
   if $HAS_RUST; then
     run_check "Cargo test" "cd '$PROJECT_ROOT' && cargo test 2>&1" || true
   fi
 }
 
-check_architecture() {
-  section "Architecture Tests"
-
+check_architecture_node() {
   if $FAST_MODE; then
     warn "Architecture tests skipped (--fast mode)"
     return 0
@@ -1025,6 +1107,13 @@ check_architecture() {
       fi
     fi
   fi
+}
+
+check_architecture_python() {
+  if $FAST_MODE; then
+    warn "Architecture tests skipped (--fast mode)"
+    return 0
+  fi
 
   if $HAS_PYTHON; then
     if [[ -d "$PROJECT_ROOT/tests/architecture" ]]; then
@@ -1033,9 +1122,7 @@ check_architecture() {
   fi
 }
 
-check_autonomy() {
-  section "CLARE Autonomy Boundaries"
-
+check_autonomy_boundaries() {
   local autonomy_file="$PROJECT_ROOT/clare/autonomy.yml"
   if [[ -f "$autonomy_file" ]]; then
     pass "autonomy.yml found"
@@ -1450,13 +1537,14 @@ main() {
     info "File scanning excludes untracked files"
   fi
 
-  run_stage 1 "Build" check_build
-  run_stage 2 "Linting" check_lint
-  run_stage 3 "Tests" check_tests
-  run_stage 4 "Architecture Tests" check_architecture
-  run_stage 5 "CLARE Autonomy Boundaries" check_autonomy
-  run_stage 6 "Extensions" check_extensions
-  run_stage 7 "Project-Specific Checks" source_local_checks
+  if $RUN_SELECTED_STAGES; then
+    run_selected_tests
+  else
+    local stage_index
+    for stage_index in "${!STAGES[@]}"; do
+      run_stage "$((stage_index + 1))"
+    done
+  fi
 
   echo ""
   echo -e "${BLUE}════════════════════════════════════════════${NC}"
