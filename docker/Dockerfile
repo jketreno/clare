@@ -1,6 +1,6 @@
 FROM ubuntu:26.04
 
-ARG GOLANG_VERSION=1.22.4
+ARG GOLANG_VERSION=1.22.9
 ENV DEBIAN_FRONTEND=noninteractive \
     GOLANG_VERSION=${GOLANG_VERSION} \
     GOPATH=/home/tester/go \
@@ -17,8 +17,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get update && apt-get install -y --no-install-recommends nodejs \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Go
-RUN curl -fsSL https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz -o /tmp/go.tar.gz \
+# Install Go (architecture derived from the build platform)
+RUN goarch="$(dpkg --print-architecture)" \
+  && curl -fsSL "https://go.dev/dl/go${GOLANG_VERSION}.linux-${goarch}.tar.gz" -o /tmp/go.tar.gz \
   && tar -C /usr/local -xzf /tmp/go.tar.gz \
   && rm /tmp/go.tar.gz
 

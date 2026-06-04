@@ -42,8 +42,11 @@ case "$REPO_URL" in
   *) ;;
 esac
 
-# Map container user to host UID:GID so mounted keys keep correct perms
-DOCKER_ARGS+=(--user "$(id -u):$(id -g)")
+# Run as the image's built-in 'tester' user (set via USER in the Dockerfile).
+# Do not override with the host UID: the entrypoint writes to $HOME=/home/tester
+# (git config, pipx) which is owned by 'tester', so a mismatched host UID would
+# fail those writes. The CLARE workspace is mounted read-only and the clone lives
+# in /work (mode 0777), so no host-write permissions are needed.
 
 # Mount the local CLARE workspace (caller should run this script from the CLARE repo root).
 # This provides the CLARE README and installer scripts to the container at runtime.

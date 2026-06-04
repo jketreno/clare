@@ -21,7 +21,8 @@ ARG GO_VERSION=1.22.9
 RUN set -eux; \
     if [ -n "${GO_VERSION:-}" ]; then \
       echo "Installing Go ${GO_VERSION}"; \
-      curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"; \
+      goarch="$(dpkg --print-architecture)"; \
+      curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${goarch}.tar.gz"; \
       rm -rf /usr/local/go; \
       tar -C /usr/local -xzf /tmp/go.tar.gz; \
       rm -f /tmp/go.tar.gz; \

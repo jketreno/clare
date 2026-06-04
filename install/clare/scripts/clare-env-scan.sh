@@ -67,7 +67,7 @@ while IFS= read -r -d '' f; do
   else
     ext=".${base##*.}"
   fi
-  counts["$ext"]=$((counts["$ext"] + 1))
+  counts["$ext"]=$((${counts["$ext"]:-0} + 1))
 done < <(find . -type f -not -path './.git/*' -print0)
 
 # Write counts to temp file for JSON stage
@@ -108,9 +108,12 @@ verify_files=("clare/verify-ci.sh" "clare/verify-local.sh")
 : >"$TMPDIR/tools.txt"
 for vf in "${verify_files[@]}"; do
   if [[ -f "$PROJECT_ROOT/$vf" ]]; then
-    # Extract tokens of likely tools
-    grep -Eio 'node|npm|npx|eslint|prettier|typescript|tsc|yq|python3|python|pipx|pip|pyyaml|shellcheck|shfmt|rg|ripgrep|ruff|flake8|mypy|pytest|go|golangci-lint|golint|cargo|rust|jq|docker|tput|git|shfmt|shellmetrics|complexipy' "$PROJECT_ROOT/$vf" 2>/dev/null || true \
+    # Extract tokens of likely tools. The `|| true` is scoped so the rest of
+    # the pipeline always runs on grep's output (matches go to the transform);
+    # without the braces, `|| true` would short-circuit the whole pipe.
+    { grep -Eio 'node|npm|npx|eslint|prettier|typescript|tsc|yq|python3|python|pipx|pip|pyyaml|shellcheck|shfmt|rg|ripgrep|ruff|flake8|mypy|pytest|go|golangci-lint|golint|cargo|rust|jq|docker|tput|git|shfmt|shellmetrics|complexipy' "$PROJECT_ROOT/$vf" 2>/dev/null || true; } \
       | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' '\n' | sort -u | while read -r token; do
+      [[ -z "$token" ]] && continue
       echo "$token|$vf"
     done
   fi
@@ -173,10 +176,10 @@ if [[ -f "$TMPDIR/tools.txt" ]]; then
         include="true"
         ;;
     esac
-    python3 - "$tool" "$where" "$hint" "$include" <<PY >>"$TMPDIR/verifyTools.jsonl" 2>/dev/null || true
-  import json,sys
-  obj={'tool': sys.argv[1], 'whereFound': sys.argv[2].split(','), 'installHint': sys.argv[3], 'includeInDocker': sys.argv[4]=='true'}
-  print(json.dumps(obj))
+    python3 - "$tool" "$where" "$hint" "$include" <<'PY' >>"$TMPDIR/verifyTools.jsonl"
+import json, sys
+obj = {'tool': sys.argv[1], 'whereFound': sys.argv[2].split(','), 'installHint': sys.argv[3], 'includeInDocker': sys.argv[4] == 'true'}
+print(json.dumps(obj))
 PY
   done <"$TMPDIR/tools.txt"
 fi
