@@ -1067,6 +1067,20 @@ check_autonomy() {
 # Each extension wraps an external tool. If enabled but not installed,
 # verify-ci.sh fails with install instructions (never auto-installs).
 
+strip_yaml_scalar_quotes() {
+  local value="$1"
+
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value#\"}"
+    value="${value%\"}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value#\'}"
+    value="${value%\'}"
+  fi
+
+  printf '%s' "$value"
+}
+
 check_extensions() {
   local extensions_file="$PROJECT_ROOT/clare/extensions.yml"
   [[ -f "$extensions_file" ]] || return 0
@@ -1089,9 +1103,7 @@ check_extensions() {
     # Detect start of a new extension block
     if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.*) ]]; then
       process_pending_extension
-      ext_name="${BASH_REMATCH[1]}"
-      ext_name="${ext_name#\"}"
-      ext_name="${ext_name%\"}"
+      ext_name="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
       ext_enabled=""
       ext_command=""
       ext_install=""
@@ -1109,43 +1121,25 @@ check_extensions() {
     $in_extension || continue
 
     if [[ "$line" =~ ^[[:space:]]*enabled:[[:space:]]*(.*) ]]; then
-      ext_enabled="${BASH_REMATCH[1]}"
-      ext_enabled="${ext_enabled#\"}"
-      ext_enabled="${ext_enabled%\"}"
+      ext_enabled="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*command:[[:space:]]*(.*) ]]; then
-      ext_command="${BASH_REMATCH[1]}"
-      ext_command="${ext_command#\"}"
-      ext_command="${ext_command%\"}"
+      ext_command="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*install_hint:[[:space:]]*(.*) ]]; then
-      ext_install="${BASH_REMATCH[1]}"
-      ext_install="${ext_install#\"}"
-      ext_install="${ext_install%\"}"
+      ext_install="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*project_url:[[:space:]]*(.*) ]]; then
-      ext_url="${BASH_REMATCH[1]}"
-      ext_url="${ext_url#\"}"
-      ext_url="${ext_url%\"}"
+      ext_url="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*threshold:[[:space:]]*(.*) ]]; then
       ext_threshold="${BASH_REMATCH[1]}"
     elif [[ "$line" =~ ^[[:space:]]*paths:[[:space:]]*(.*) ]]; then
-      ext_paths="${BASH_REMATCH[1]}"
-      ext_paths="${ext_paths#\"}"
-      ext_paths="${ext_paths%\"}"
+      ext_paths="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*extra_flags:[[:space:]]*(.*) ]]; then
-      ext_extra="${BASH_REMATCH[1]}"
-      ext_extra="${ext_extra#\"}"
-      ext_extra="${ext_extra%\"}"
+      ext_extra="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*file_types:[[:space:]]*(.*) ]]; then
-      ext_file_types="${BASH_REMATCH[1]}"
-      ext_file_types="${ext_file_types#\"}"
-      ext_file_types="${ext_file_types%\"}"
+      ext_file_types="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*exclude:[[:space:]]*(.*) ]]; then
-      ext_exclude="${BASH_REMATCH[1]}"
-      ext_exclude="${ext_exclude#\"}"
-      ext_exclude="${ext_exclude%\"}"
+      ext_exclude="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     elif [[ "$line" =~ ^[[:space:]]*count_comments:[[:space:]]*(.*) ]]; then
-      ext_count_comments="${BASH_REMATCH[1]}"
-      ext_count_comments="${ext_count_comments#\"}"
-      ext_count_comments="${ext_count_comments%\"}"
+      ext_count_comments="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
     fi
   done <"$extensions_file"
 
