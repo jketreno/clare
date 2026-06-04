@@ -235,13 +235,13 @@ apply_recommended_extensions() {
     echo "Backing up existing $extfile -> $extfile.bak" >&2
     cp "$extfile" "$extfile.bak"
   fi
-  EXTFILE="$extfile" python3 - <<PY
-import json, os
+  EXTFILE="$extfile" RECOMMENDED="$TMPDIR/recommended_extensions.json" python3 - <<'PY'
+import json, os, sys
 extfile = os.environ['EXTFILE']
-rec = json.load(open('$TMPDIR/recommended_extensions.json'))
+rec = json.load(open(os.environ['RECOMMENDED']))
 with open(extfile, 'w') as f:
     json.dump({'recommendations': [r['extension'] for r in rec]}, f, indent=2)
-print('Wrote', extfile, file=__import__('sys').stderr)
+print('Wrote', extfile, file=sys.stderr)
 PY
 }
 
@@ -251,23 +251,25 @@ if [[ "$APPLY_EXT" == true ]]; then
 fi
 
 if [[ "$MODE" == "json" ]]; then
-  python3 - <<PY
-import json,sys,os
-root='.'
-with open('$TMPDIR/fileCounts.json') as f:
+  TMPDIR="$TMPDIR" python3 - <<'PY'
+import json,os
+tmp=os.environ['TMPDIR']
+with open(os.path.join(tmp,'fileCounts.json')) as f:
   fileCounts=json.load(f)
 configs=[]
-if os.path.exists('$TMPDIR/configs.txt'):
-  with open('$TMPDIR/configs.txt') as f:
+configs_path=os.path.join(tmp,'configs.txt')
+if os.path.exists(configs_path):
+  with open(configs_path) as f:
     configs=[l.strip() for l in f if l.strip()]
 verifyTools=[]
-if os.path.exists('$TMPDIR/verifyTools.jsonl'):
-  for line in open('$TMPDIR/verifyTools.jsonl'):
+verify_path=os.path.join(tmp,'verifyTools.jsonl')
+if os.path.exists(verify_path):
+  for line in open(verify_path):
     try:
       verifyTools.append(json.loads(line))
     except Exception:
       pass
-recommended=json.load(open('$TMPDIR/recommended_extensions.json'))
+recommended=json.load(open(os.path.join(tmp,'recommended_extensions.json')))
 out={'fileCounts': fileCounts, 'configsFound': configs, 'verifyTools': verifyTools, 'recommendedExtensions': recommended}
 print(json.dumps(out, indent=2))
 PY
@@ -278,9 +280,10 @@ fi
 echo "CLARE environment scan for: $PROJECT_ROOT"
 echo ""
 echo "File counts (by extension):"
-python3 - <<PY
-import json
-print('\n'.join([f"  {k}: {v}" for k,v in json.load(open('$TMPDIR/fileCounts.json')).items()]))
+TMPDIR="$TMPDIR" python3 - <<'PY'
+import json, os
+counts=json.load(open(os.path.join(os.environ['TMPDIR'],'fileCounts.json')))
+print('\n'.join([f"  {k}: {v}" for k,v in counts.items()]))
 PY
 
 echo ""
@@ -294,9 +297,9 @@ fi
 echo ""
 if [[ -s "$TMPDIR/verifyTools.jsonl" ]]; then
   echo "Tools referenced by verify scripts:"
-  python3 - <<PY
-import json
-for line in open('$TMPDIR/verifyTools.jsonl'):
+  TMPDIR="$TMPDIR" python3 - <<'PY'
+import json, os
+for line in open(os.path.join(os.environ['TMPDIR'],'verifyTools.jsonl')):
   try:
     obj=json.loads(line)
     print(f"  - {obj['tool']}: {obj['installHint']} (includeInDocker={obj['includeInDocker']})")
@@ -309,9 +312,9 @@ fi
 
 echo ""
 echo "Recommended VS Code extensions:"
-python3 - <<PY
-import json
-for e in json.load(open('$TMPDIR/recommended_extensions.json')):
+TMPDIR="$TMPDIR" python3 - <<'PY'
+import json, os
+for e in json.load(open(os.path.join(os.environ['TMPDIR'],'recommended_extensions.json'))):
   print(f"  - {e['extension']}: {e['reason']}")
 PY
 
