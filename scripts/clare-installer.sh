@@ -830,7 +830,7 @@ replace_extension_block() {
   local tmp_file
   tmp_file="$(mktemp)"
 
-  awk -v ext_name="$extension_name" -v replacement_file="$replacement_file" '
+  if awk -v ext_name="$extension_name" -v replacement_file="$replacement_file" '
     BEGIN {
       while ((getline line < replacement_file) > 0) {
         replacement = replacement line ORS
@@ -874,9 +874,14 @@ replace_extension_block() {
     END {
       exit(replaced ? 0 : 1)
     }
-  ' "$config_file" >"$tmp_file"
-
-  mv "$tmp_file" "$config_file"
+  ' "$config_file" >"$tmp_file"; then
+    mv "$tmp_file" "$config_file"
+  else
+    # The named block was not found; tmp_file holds an unverified copy of the
+    # config. Discard it rather than overwriting the real file with a no-op.
+    rm -f "$tmp_file"
+    return 1
+  fi
 }
 
 prompt_update_extension() {
@@ -919,8 +924,11 @@ prompt_update_extension() {
   fi
 
   if [[ "$YES" == "true" || "$AUTO_UPDATE" == "true" ]] || ! $HAS_TTY; then
-    replace_extension_block "$config_file" "$extension_name" "$latest_prepared"
-    info "  updated: $rel ($extension_name extension)"
+    if replace_extension_block "$config_file" "$extension_name" "$latest_prepared"; then
+      info "  updated: $rel ($extension_name extension)"
+    else
+      warn "  could not update $rel ($extension_name extension); left unchanged"
+    fi
     rm -f "$installed_block" "$latest_block" "$latest_prepared"
     return 0
   fi
@@ -932,8 +940,11 @@ prompt_update_extension() {
     choice="${choice:-u}"
     case "${choice,,}" in
       u | update)
-        replace_extension_block "$config_file" "$extension_name" "$latest_prepared"
-        success "  updated: $rel ($extension_name extension)"
+        if replace_extension_block "$config_file" "$extension_name" "$latest_prepared"; then
+          success "  updated: $rel ($extension_name extension)"
+        else
+          warn "  could not update $rel ($extension_name extension); left unchanged"
+        fi
         rm -f "$installed_block" "$latest_block" "$latest_prepared"
         return 0
         ;;
@@ -1407,10 +1418,25 @@ run_setup_flow() {
   setup_print_next_steps
 }
 
+# Guard a value-taking flag: error out instead of silently mis-parsing when the
+# value is missing. Without this, a trailing value flag (e.g. `--install-skill`
+# as the last argument) makes `shift 2` fail on a single-element list, leaving
+# $1 unchanged and spinning the arg loop forever.
+require_flag_value() {
+  local flag="$1"
+  local value="$2"
+  if [[ -z "$value" || "$value" == -* ]]; then
+    error "$flag requires a value"
+    usage
+    exit "$EXIT_USAGE"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --target)
-      TARGET_DIR="${2:-}"
+      require_flag_value "--target" "${2:-}"
+      TARGET_DIR="$2"
       shift 2
       ;;
     --dry-run)
@@ -1438,7 +1464,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --install-skill)
-      INSTALL_SKILLS="${2:-}"
+      require_flag_value "--install-skill" "${2:-}"
+      INSTALL_SKILLS="$2"
       shift 2
       ;;
     --update)
@@ -1446,11 +1473,13 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --install-examples)
-      INSTALL_EXAMPLES_PATH="${2:-}"
+      require_flag_value "--install-examples" "${2:-}"
+      INSTALL_EXAMPLES_PATH="$2"
       shift 2
       ;;
     --extract)
-      EXTRACT_PATH="${2:-}"
+      require_flag_value "--extract" "${2:-}"
+      EXTRACT_PATH="$2"
       shift 2
       ;;
     --help | -h)
