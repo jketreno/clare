@@ -10,6 +10,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates curl wget gnupg lsb-release build-essential git unzip \
     python3 python3-venv python3-setuptools python3-pip \
+    shellcheck jq \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS (20.x)
@@ -22,6 +23,10 @@ RUN goarch="$(dpkg --print-architecture)" \
   && curl -fsSL "https://go.dev/dl/go${GOLANG_VERSION}.linux-${goarch}.tar.gz" -o /tmp/go.tar.gz \
   && tar -C /usr/local -xzf /tmp/go.tar.gz \
   && rm /tmp/go.tar.gz
+
+# Install shfmt system-wide so the verify-local.sh shell-format check can run.
+# GOBIN forces the binary into /usr/local/bin (on PATH for all users).
+RUN GOBIN=/usr/local/bin /usr/local/go/bin/go install mvdan.cc/sh/v3/cmd/shfmt@latest
 
 # Install pipx for isolated CLI installs
 RUN python3 -m pip install --upgrade pip setuptools wheel \

@@ -122,7 +122,15 @@ for vf in "${verify_files[@]}"; do
       echo "$token|$vf"
     done
   fi
-done | sort -u >"$TMPDIR/tools.txt"
+done | sort -u >"$TMPDIR/tools_raw.txt"
+
+# Aggregate to one row per tool, joining every verify file it appeared in into a
+# single comma-separated whereFound list. Without this, a tool referenced in both
+# verify scripts would emit two separate rows, doubling the report.
+awk -F'|' '
+  { if ($1 in seen) { files[$1] = files[$1] "," $2 } else { seen[$1] = 1; files[$1] = $2; order[++n] = $1 } }
+  END { for (i = 1; i <= n; i++) print order[i] "|" files[order[i]] }
+' "$TMPDIR/tools_raw.txt" >"$TMPDIR/tools.txt"
 
 # Helper: map tool -> install hint + includeInDocker
 map_tool() {
