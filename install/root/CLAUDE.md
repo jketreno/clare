@@ -194,6 +194,9 @@ In PLAN mode you make no file edits, so do **not** run `./clare/verify-ci.sh` wh
 ./clare/verify-ci.sh             # Full CI check
 ./clare/verify-ci.sh --fast      # Skip architecture tests
 ./clare/verify-ci.sh --fix       # Auto-fix lint
+./clare/verify-ci.sh --fail-fast # Stop at the first failing check
+./clare/verify-ci.sh --list-tests         # List numbered stages and steps
+./clare/verify-ci.sh --run-tests 1,3.1,7  # Run only selected stages/steps
 
 # Autonomy
 cat clare/autonomy.yml             # View all boundaries
