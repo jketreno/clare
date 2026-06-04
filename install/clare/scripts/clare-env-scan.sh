@@ -68,7 +68,12 @@ while IFS= read -r -d '' f; do
     ext=".${base##*.}"
   fi
   counts["$ext"]=$((${counts["$ext"]:-0} + 1))
-done < <(find . -type f -not -path './.git/*' -print0)
+  # Prune vendored/build directories so file counts characterize the project
+  # itself, not its dependencies (e.g. node_modules can dwarf real source files).
+done < <(find . \
+  \( -path './.git' -o -path './node_modules' -o -path './dist' \
+  -o -path './build' -o -path './.venv' -o -path './venv' -o -path './vendor' \) -prune \
+  -o -type f -print0)
 
 # Write counts to temp file for JSON stage
 echo "{" >"$TMPDIR/fileCounts.json"

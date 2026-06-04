@@ -1280,6 +1280,10 @@ suggest_quick_command() {
 
 print_failure_summary() {
   local lines="$SUMMARY_LINES"
+  # Nothing to summarize when no checks failed. The guard also keeps the
+  # "${FAILED_CHECKS[@]}" expansion safe under `set -u` on bash < 4.4, where
+  # expanding an empty array would otherwise be an unbound-variable error.
+  [[ ${#FAILED_CHECKS[@]} -gt 0 ]] || return 0
   echo ""
   echo -e "${BLUE}════════════════════════════════════════════${NC}"
   echo -e "${RED}FAILURE SUMMARY:${NC}"

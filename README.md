@@ -177,7 +177,7 @@ Domain-specific examples (API endpoint skills, type-sync tests, etc.) are availa
 
 ### env-scan skill & Dockerfile.clare
 
-The installer includes a new `env-scan` helper (see `install/clare/scripts/clare-env-scan.sh`) that inspects your repository for common files, extracts tools referenced by `clare/verify-*.sh`, and recommends VS Code extensions. A companion image, `install/Dockerfile.clare`, provides a minimal environment to run `./clare/verify-ci.sh --fast` and now installs the Go toolchain by default (override with `--build-arg GO_VERSION=`).
+Installing the `clare-env-setup` skill (during setup, or via `--install-skill`) also installs an `env-scan` helper into your project at `clare/scripts/clare-env-scan.sh`. It inspects your repository for common files, extracts tools referenced by `clare/verify-*.sh`, and recommends VS Code extensions. A companion image, `install/Dockerfile.clare` (shipped in the CLARE payload under `install/`; copy it into your project), provides a minimal environment to run `./clare/verify-ci.sh --fast` and installs the Go toolchain by default (override with `--build-arg GO_VERSION=`).
 
 ---
 
