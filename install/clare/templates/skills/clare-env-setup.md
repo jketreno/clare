@@ -11,24 +11,28 @@ Purpose
 - Provide a small `Dockerfile.clare` to run verification in an isolated container.
 
 Usage
+
+Installing this skill also installs the scanner into your project at
+`clare/scripts/clare-env-scan.sh`. Run it from the project root:
+
 - Run the scanner (human-readable report):
 
-  bash install/clare/scripts/clare-env-scan.sh --report
+  bash clare/scripts/clare-env-scan.sh --report
 
 - Machine-readable JSON output:
 
-  bash install/clare/scripts/clare-env-scan.sh --json > /tmp/clare-scan.json
+  bash clare/scripts/clare-env-scan.sh --json > /tmp/clare-scan.json
 
 - Attempt to update `.vscode/extensions.json` in the repository (use with care):
 
-  bash install/clare/scripts/clare-env-scan.sh --apply-extensions --vscode-dir .vscode
+  bash clare/scripts/clare-env-scan.sh --apply-extensions --vscode-dir .vscode
 
 Notes
 - The scanner is intentionally conservative and will only auto-apply VS Code recommendations when explicitly requested.
-- The included `install/Dockerfile.clare` is a suggested, minimal image to run `./clare/verify-ci.sh --fast` without polluting the host. Edit the Dockerfile to add or remove language runtimes as needed for your environment.
+- The CLARE source repo also ships a `Dockerfile.clare` (under `install/`): a suggested, minimal image to run `./clare/verify-ci.sh --fast` without polluting the host. Copy it into your project and edit it to add or remove language runtimes as needed.
 
 Dockerfile details
-- The provided `install/Dockerfile.clare` now installs the Go toolchain from the official tarball by default (build-arg `GO_VERSION=1.22.9`). This enables language checks that require `go` and binaries installed via `go install` (for example `shfmt`) to be available inside the container. To override the Go version or skip installation, use `--build-arg GO_VERSION=...` or an empty value to skip.
+- The CLARE source repo's `install/Dockerfile.clare` installs the Go toolchain from the official tarball by default (build-arg `GO_VERSION=1.22.9`). This enables language checks that require `go` and binaries installed via `go install` (for example `shfmt`) to be available inside the container. To override the Go version or skip installation, use `--build-arg GO_VERSION=...` or an empty value to skip.
 
 Installer usage
 - The installer supports non-interactive skill installation with the `--install-skill` flag. You can pass a quoted list of numeric indices (as shown during the setup prompt) or `all`. Example:

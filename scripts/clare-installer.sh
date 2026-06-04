@@ -744,7 +744,7 @@ setup_maybe_migrate_legacy_extensions() {
 SETUP_INSTALLED_SKILLS=""
 
 install_skill_item() {
-  # install_skill_item <src_file> <name> <prompts_dir> <claude_commands_dir> <vscode_prompts_dir> <codex_skills_dir> <cursor_rules_dir>
+  # install_skill_item <src_file> <name> <prompts_dir> <claude_commands_dir> <vscode_prompts_dir> <codex_skills_dir> <cursor_rules_dir> <setup_target>
   local src_file="$1"
   shift
   local name="$1"
@@ -759,6 +759,26 @@ install_skill_item() {
   shift
   local cursor_rules_dir="$1"
   shift
+  local setup_target="$1"
+  shift
+
+  # The clare-env-setup skill ships a helper script (clare-env-scan.sh). Its
+  # instructions reference clare/scripts/clare-env-scan.sh relative to the
+  # project root, so the script must actually be installed into the target —
+  # otherwise the mirrored skill points at a path that does not exist. The
+  # source root is the skill file's path minus the install/.../skills suffix.
+  if [[ "$name" == "clare-env-setup" ]]; then
+    local source_root="${src_file%/install/clare/templates/skills/*}"
+    local env_scan_src="$source_root/install/clare/scripts/clare-env-scan.sh"
+    if [[ -f "$env_scan_src" ]]; then
+      mkdir -p "$setup_target/clare/scripts"
+      cp "$env_scan_src" "$setup_target/clare/scripts/clare-env-scan.sh"
+      chmod +x "$setup_target/clare/scripts/clare-env-scan.sh" 2>/dev/null || true
+      success "Installed: clare/scripts/clare-env-scan.sh"
+    else
+      warn "clare-env-setup skill installed but $env_scan_src not found; env-scan script not copied"
+    fi
+  fi
 
   cp "$src_file" "$prompts_dir/${name}.prompt.md"
   cp "$src_file" "$claude_commands_dir/${name}.md"
@@ -873,7 +893,7 @@ setup_install_skills_from_arrays() {
 
   local idx
   for idx in "${to_install[@]}"; do
-    install_skill_item "${_files[$idx]}" "${_names[$idx]}" "$prompts_dir" "$claude_commands_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$cursor_rules_dir"
+    install_skill_item "${_files[$idx]}" "${_names[$idx]}" "$prompts_dir" "$claude_commands_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$cursor_rules_dir" "$setup_target"
   done
 }
 
