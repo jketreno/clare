@@ -78,13 +78,27 @@ else
 fi
 
 # If this is a CLARE repo (has clare/verify-ci.sh), run it with --fast to validate installed scripts
+verify_status="skipped"
 if [ -f "clare/verify-ci.sh" ]; then
   echo "Found clare/verify-ci.sh — running with --fast to validate installation scripts"
   chmod +x clare/verify-ci.sh
-  bash clare/verify-ci.sh --fast || echo "clare/verify-ci.sh reported failures (non-blocking for this install test)"
+  if bash clare/verify-ci.sh --fast; then
+    verify_status="passed"
+  else
+    verify_status="failed"
+  fi
 else
   echo "No clare/verify-ci.sh found — skipping CLARE verification step"
 fi
 
-echo "=== Install smoke test completed ==="
-exit 0
+echo "=== Install smoke test completed (verify-ci.sh: $verify_status) ==="
+case "$verify_status" in
+  failed)
+    echo "VERIFICATION FAILED: clare/verify-ci.sh reported failures. The install" >&2
+    echo "is not validated. See the check output above for details." >&2
+    exit 1
+    ;;
+  *)
+    exit 0
+    ;;
+esac

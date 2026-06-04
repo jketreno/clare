@@ -43,6 +43,17 @@ FAILED_CHECKS=()
 declare -A CHECK_COMMANDS=()
 declare -A FAILED_OUTPUTS=()
 
+# Failed checks retain their captured output in temp files so the failure summary
+# can print snippets and a "Full log:" path. Clean those up when the script exits
+# (including the fail-fast `exit 1`) so they don't accumulate in the temp dir.
+cleanup_failed_outputs() {
+  local f
+  for f in "${FAILED_OUTPUTS[@]+"${FAILED_OUTPUTS[@]}"}"; do
+    [[ -n "$f" && -f "$f" ]] && rm -f "$f"
+  done
+}
+trap cleanup_failed_outputs EXIT
+
 usage() {
   cat <<'EOF'
 Usage: ./clare/verify-ci.sh [options]

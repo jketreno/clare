@@ -11,9 +11,11 @@ RUN apt-get update && \
       jq ripgrep wget unzip build-essential procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yq (mikefarah) and make available
+# Install yq (mikefarah) and make available. Architecture is derived from the
+# build platform; dpkg's amd64/arm64 names match mikefarah's release suffixes.
 RUN YQ_VERSION=v4.41.1 && \
-    curl -L -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" && \
+    yqarch="$(dpkg --print-architecture)" && \
+    curl -L -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${yqarch}" && \
     chmod +x /usr/local/bin/yq
 
 # Install Go from official tarball (optional - override GO_VERSION at build time)
