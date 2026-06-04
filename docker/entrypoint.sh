@@ -5,6 +5,9 @@ IFS=$'\n\t'
 REPO_URL="${REPO_URL:-}"
 BRANCH="${BRANCH:-main}"
 CLONE_DIR="/work/repo"
+# Upstream CLARE repository, used only as a fallback when no installer is mounted
+# and the README carries no release-installer URL. Override with CLARE_REPO_URL.
+CLARE_REPO_URL="${CLARE_REPO_URL:-https://github.com/jketreno/clare}"
 
 if [ -z "$REPO_URL" ]; then
   echo "ERROR: REPO_URL is not set. Provide the repository URL via -e REPO_URL=..."
@@ -32,8 +35,14 @@ cd "$CLONE_DIR"
 
 CLARE_MOUNT="/work/host_clare"
 
+# Track whether we attempted a CLARE install. If we did, a missing
+# clare/verify-ci.sh afterward means the install failed to produce it, which must
+# be treated as a failure rather than a silent pass.
+install_attempted=false
+
 if [ -f "$CLARE_MOUNT/README.md" ]; then
   echo "CLARE README found at $CLARE_MOUNT/README.md — following installer instructions"
+  install_attempted=true
 
   # Prefer running the bundled installer script from the mounted CLARE repo
   if [ -f "$CLARE_MOUNT/scripts/clare-installer.sh" ]; then
@@ -43,7 +52,7 @@ if [ -f "$CLARE_MOUNT/README.md" ]; then
 
   else
     # Try to extract a release installer URL from the README and run it
-    release_url=$(grep -o 'https://github.com/jketreno/clare/releases/download/[^/]*/clare-installer-v[0-9.]*\.sh' "$CLARE_MOUNT/README.md" | head -n 1 || true)
+    release_url=$(grep -o "${CLARE_REPO_URL}/releases/download/[^/]*/clare-installer-v[0-9.]*\.sh" "$CLARE_MOUNT/README.md" | head -n 1 || true)
     if [ -n "$release_url" ]; then
       echo "Found release installer URL in README: $release_url"
       tmp_installer=$(mktemp /tmp/clare-installer.XXXXXX.sh)
@@ -60,7 +69,7 @@ if [ -f "$CLARE_MOUNT/README.md" ]; then
       echo "No release installer URL found in README; falling back to cloning CLARE and running its installer"
       if command -v git >/dev/null 2>&1; then
         tmp_src=$(mktemp -d /tmp/clare-src.XXXXXX)
-        git clone https://github.com/jketreno/clare "$tmp_src" || {
+        git clone "$CLARE_REPO_URL" "$tmp_src" || {
           echo "Failed to clone clare repo"
           tmp_src=""
         }
@@ -97,6 +106,14 @@ case "$verify_status" in
     echo "VERIFICATION FAILED: clare/verify-ci.sh reported failures. The install" >&2
     echo "is not validated. See the check output above for details." >&2
     exit 1
+    ;;
+  skipped)
+    if [ "$install_attempted" = true ]; then
+      echo "VERIFICATION FAILED: a CLARE install was attempted but produced no" >&2
+      echo "clare/verify-ci.sh. The install did not complete successfully." >&2
+      exit 1
+    fi
+    exit 0
     ;;
   *)
     exit 0

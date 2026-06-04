@@ -50,6 +50,12 @@ extensions:
   #   curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.12.2
   # Project: https://golangci-lint.run/
   #
+  # Note: this is golangci-lint's official pinned installer. CLARE's own scripts
+  # forbid pipe-to-shell (see run_forbidden_pipeline_check in verify-local.sh),
+  # but this hint is documentation a human runs deliberately, not code CLARE
+  # executes. If you prefer to avoid `curl | sh`, install via your package
+  # manager or download the pinned release binary from the project URL instead.
+  #
   - name: golangci-lint-complexity
     enabled: false
     description: "Complexity analysis for Go via golangci-lint"
