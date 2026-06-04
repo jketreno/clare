@@ -24,14 +24,19 @@ verify-ci.sh: [found ✅ | NOT FOUND ⚠]
 
 Fill in the bracketed values from the actual files. Show this block **once per conversation**, not on every message. If `clare/autonomy.yml` is missing, tell the user to run the CLARE installer.
 
-## Core Rule: Never Mark Work Incomplete
+## Core Rule: Verify After Edits
 
-After any file edit (create/update/delete), run `./clare/verify-ci.sh`.
+**When to run `./clare/verify-ci.sh`:** only in a turn where you created, updated, or deleted a file. If you edited no files this turn — including any plan-mode, research, or read-only turn — do not run it.
 
-- If it fails → fix the issues → run again → repeat until exit code 0
-- Never skip or bypass this script
-- Before sending a final response for an implementation task, include: verify-ci.sh result (PASS/FAIL), command used, and whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable)
-- If running in read-only mode (Ask mode), explicitly state: "verify-ci.sh not run because session is read-only."
+**How to run it (a terminating sequence, not a loop):**
+
+1. Run `./clare/verify-ci.sh` once.
+2. Exit code 0 → report PASS and stop.
+3. Non-zero → fix the reported failures, then run it once more.
+
+- Do not invoke it again for any other reason; never skip or bypass it when edits were made.
+- **Reporting:** if you ran it this turn, include verify-ci.sh result (PASS/FAIL), command used, and whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable). If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it.
+- If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
 - Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` is the source of truth
 
 ## Cross-Agent Sync Rule
@@ -105,8 +110,8 @@ Before generating code for any domain concept, check `clare/autonomy.yml`'s `sou
 3. Read clare/principles.md — identify applicable constraints
 4. Check sources_of_truth for relevant domain concepts
 5. Generate code following all constraints
-6. Run ./clare/verify-ci.sh
-7. If fails: fix → rerun → repeat until passing
+6. Run ./clare/verify-ci.sh once
+7. If it fails: fix the reported failures, then run it once more
 8. Report verify-ci status (PASS/FAIL), command used, and flags used (`--fast`/`--fix` if any)
 9. Summarize files changed and remind user to commit
 ```

@@ -2,9 +2,9 @@
 
 This project uses the **CLARE** framework for AI-assisted development.
 
-## Non-Negotiable Rule
+## The verify-ci.sh Rule
 
-After any file edit (create/update/delete), run `./clare/verify-ci.sh`.
+**When to run it:** only in a turn where you created, updated, or deleted a file. If you edited no files this turn — including any plan-mode, research, or read-only turn — do **not** run it.
 
 ```bash
 ./clare/verify-ci.sh        # Full check
@@ -13,14 +13,15 @@ After any file edit (create/update/delete), run `./clare/verify-ci.sh`.
 ./clare/verify-ci.sh --fail-fast # Stop at the first failing check and show a concise summary
 ```
 
-If it fails → fix the issues → run again → repeat until exit code 0.
+**How to run it (a terminating sequence, not a loop):**
 
-Before sending a final response for an implementation task, include:
-- verify-ci.sh result: PASS/FAIL
-- command used
-- whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable)
+1. Run `./clare/verify-ci.sh` once.
+2. Exit code 0 → report PASS and stop.
+3. Non-zero → fix the reported failures, then run it once more.
 
-If running in read-only mode (Ask mode), explicitly state: "verify-ci.sh not run because session is read-only."
+Do not invoke it again for any other reason.
+
+**Reporting:** if you ran verify-ci.sh this turn, report the result (PASS/FAIL), the command, and any `--fast`/`--fix`/`--fail-fast` flag used. If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it. If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
 
 Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` is the source of truth.
 
@@ -80,20 +81,17 @@ Fill in the actual values by reading the files. Show this block **once per sessi
 
 ## Verification Workflow [C]
 
+Only after you have edited a file this turn:
+
 ```
-Generate/modify code
-       ↓
-Run ./clare/verify-ci.sh
-       ↓
-PASS? → Report verify-ci status (PASS), command used, and flags used
-    Then summarize files changed and remind to commit
-         Remind: "Please review the diff and commit."
-       ↓
-FAIL? → Read error output
-      → Fix the specific failures
-      → Run ./clare/verify-ci.sh again
-      → Loop until passing
+1. Run ./clare/verify-ci.sh once.
+2. Exit code 0 → report PASS + command + flags used,
+   summarize files changed, and remind: "Please review the diff and commit."
+3. Non-zero → read the error output, fix the specific failures,
+   then run ./clare/verify-ci.sh once more.
 ```
+
+If a turn made no file edits (plan-mode, research, read-only), skip this entirely.
 
 ---
 
@@ -146,6 +144,8 @@ Show me the plan before implementing:
 
 Wait for approval before writing code.
 ```
+
+In PLAN mode you make no file edits, so do **not** run `./clare/verify-ci.sh` while planning. It runs only after edits, once the plan is approved and implemented.
 
 ---
 

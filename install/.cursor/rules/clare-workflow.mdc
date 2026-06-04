@@ -32,27 +32,25 @@ Fill in the bracketed values from the actual files. Show this block **once per s
 2. Read `clare/principles.md` for applicable constraints
 3. For complex tasks (3+ files, new patterns): use PLAN mode first — show the plan, wait for approval, then implement
 
-## Non-Negotiable: Verify After Any Code Changes
+## Verify After Code Changes
 
-After any file edit (create/update/delete), run:
+**When to run it:** only in a turn where you created, updated, or deleted a file. If you edited no files this turn — including any plan-mode, research, or read-only turn — do not run it.
 
-```bash
-./clare/verify-ci.sh
-```
+**How to run it (a terminating sequence, not a loop):**
 
-If it fails:
+1. Run `./clare/verify-ci.sh` once.
+2. Exit code 0 → report PASS and stop.
+3. Non-zero → fix the reported failures, then run it once more.
 
-1. Fix failures
-2. Re-run `./clare/verify-ci.sh`
-3. Repeat until exit code 0
+Do not invoke it again for any other reason.
 
-Before sending a final response for an implementation task, include:
+**Reporting:** if you ran verify-ci.sh this turn, include:
 
 - verify-ci.sh result: PASS/FAIL
 - command used
 - whether `--fast` or `--fix` was used (if applicable)
 
-If running in read-only mode (Ask mode), explicitly state: "verify-ci.sh not run because session is read-only."
+If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it. If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
 
 Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` remains the source of truth.
 

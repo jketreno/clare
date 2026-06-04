@@ -3,7 +3,7 @@
 This project uses the CLARE framework. Detailed rules are in `.cursor/rules/`.
 
 ## Core Rule
-Always run `./clare/verify-ci.sh` before marking work complete.
+After editing a file, run `./clare/verify-ci.sh` before marking work complete. Run it only in a turn where you edited a file — not in plan-mode, research, or read-only turns. See `.cursor/rules/clare-workflow.mdc` for the full procedure.
 
 ## Cross-Agent Sync Rule
 When CLARE agent configuration changes, update all supported agent environments in the same change:
