@@ -63,6 +63,10 @@ If a file is marked `humans-only`, say:
 - **Reality-Aligned** — Declared sources of truth in `clare/autonomy.yml` win over assumptions.
 - **Ephemeral** — Generated files must be regenerated from their source, not hand-edited.
 
+## Linter Integrity
+
+Fix what the linters and `clare/verify-ci.sh` flag — never circumvent it. When complexity or other checks are enabled, do not silence findings with per-file/per-line suppressions (`// eslint-disable complexity`, `# noqa`, `# type: ignore`, `nolint`), do not raise thresholds in `clare/extensions.yml`, and do not exclude a file to dodge a fix. Refactor to satisfy the check; if a limit is genuinely wrong, raise it with the user rather than changing it silently to get green.
+
 ## Key Files
 
 - `clare/autonomy.yml` — autonomy boundaries and sources of truth
