@@ -1326,13 +1326,13 @@ suggest_quick_command() {
   local name="$1"
   local cmd="$2"
   case "$name" in
-    *ESLint* | *eslint* | ESLint | eslint)
+    *ESLint* | *eslint*)
       echo "cd '$PROJECT_ROOT' && npx eslint --fix ."
       ;;
-    *Prettier* | *prettier* | Prettier | prettier)
+    *Prettier* | *prettier*)
       echo "cd '$PROJECT_ROOT' && npx prettier --write ."
       ;;
-    *TypeScript* | *tsc* | TypeScript | tsc)
+    *TypeScript* | *tsc*)
       echo "cd '$PROJECT_ROOT' && npx tsc --noEmit"
       ;;
     *Ruff* | *ruff*)
@@ -1341,13 +1341,13 @@ suggest_quick_command() {
     *Mypy* | *mypy*)
       echo "cd '$PROJECT_ROOT' && mypy ."
       ;;
-    *pytest* | *Pytest* | pytest | Pytest)
+    *pytest* | *Pytest*)
       echo "cd '$PROJECT_ROOT' && pytest -q"
       ;;
-    *'npm test'* | 'npm test' | *"npm test"*)
+    *'npm test'*)
       echo "cd '$PROJECT_ROOT' && npm test"
       ;;
-    *Go* | *golang* | go)
+    *Go* | *golang*)
       echo "cd '$PROJECT_ROOT' && go test ./..."
       ;;
     *Cargo* | *cargo*)
