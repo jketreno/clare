@@ -8,11 +8,15 @@ if [[ ! -f "$SCRIPT" ]]; then
   exit 2
 fi
 
+# Use a private temp file so concurrent/multi-user runs don't collide.
+OUTPUT="$(mktemp)"
+trap 'rm -f "$OUTPUT"' EXIT
+
 # Ensure JSON mode runs
-bash "$SCRIPT" --json >/tmp/clare-scan.json
-jq . /tmp/clare-scan.json >/dev/null 2>&1 || {
+bash "$SCRIPT" --json >"$OUTPUT"
+jq . "$OUTPUT" >/dev/null 2>&1 || {
   echo "JSON output invalid or jq not installed; printing raw output:" >&2
-  cat /tmp/clare-scan.json
+  cat "$OUTPUT"
   exit 3
 }
 
