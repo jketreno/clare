@@ -2,23 +2,24 @@
 
 This project uses the **CLARE** framework for AI-assisted development.
 
-## Non-Negotiable Rule
+## The verify-ci.sh Rule
 
-After any file edit (create/update/delete), run:
+**When to run it:** only in a turn where you created, updated, or deleted a file. If you edited no files this turn — including any plan-mode, research, or read-only turn — do not run it.
 
-```bash
-./clare/verify-ci.sh
-```
+**How to run it (a terminating sequence, not a loop):**
 
-If it fails, fix the issues, run it again, and repeat until exit code 0.
-Do not report implementation work complete while `./clare/verify-ci.sh` fails.
+1. Run `./clare/verify-ci.sh` once.
+2. Exit code 0 → report PASS and stop.
+3. Non-zero → fix the reported failures, then run it once more.
 
-Before sending a final response for an implementation task, include:
+Do not invoke it again for any other reason, and do not report implementation work complete while it fails.
+
+**Reporting:** if you ran verify-ci.sh this turn, report:
 - verify-ci.sh result: PASS/FAIL
 - command used
 - whether `--fast`, `--fix`, or `--fail-fast` was used, if applicable
 
-If running in read-only mode, explicitly state: `verify-ci.sh not run because session is read-only.`
+If you edited no files this turn, state `no edits this turn — verify-ci.sh not run` and do not invoke it. If running in read-only mode, state: `verify-ci.sh not run because session is read-only.`
 
 ## Cross-Agent Sync Rule
 

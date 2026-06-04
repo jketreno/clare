@@ -36,8 +36,8 @@ Codex:
 1. Reads clare/autonomy.yml for affected paths.
 2. Checks clare/principles.md for applicable constraints.
 3. Generates the implementation and tests.
-4. Runs ./clare/verify-ci.sh.
-5. Fixes failures and reruns until passing.
+4. Runs ./clare/verify-ci.sh once.
+5. If it fails, fixes the reported failures and runs it once more.
 6. Reports the verification result.
 ```
 
