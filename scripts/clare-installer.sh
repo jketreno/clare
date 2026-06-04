@@ -28,6 +28,7 @@ TARGET_DIR=""
 DRY_RUN=false
 FORCE=false
 YES=false
+AUTO_UPDATE=false
 EXTRACT_PATH=""
 INSTALL_EXAMPLES_PATH=""
 INSTALL_SKILLS=""
@@ -133,7 +134,7 @@ usage() {
   cat <<'USAGE'
 Usage:
   clare-installer.sh [--target <path>] [--dry-run] [--force] [--yes] [--no-setup]
-  clare-installer.sh --update [--target <path>] [--dry-run] [--yes] [--no-setup]
+  clare-installer.sh --update [--target <path>] [--dry-run] [--yes|--auto-update] [--no-setup]
   clare-installer.sh --install-examples <path> [--force]
   clare-installer.sh --extract <path> [--force]
   clare-installer.sh [--dry-run] /path/to/project
@@ -145,6 +146,8 @@ Options:
   --dry-run         Show what would happen without modifying target files
   --force           Allow overwrite for --extract/--install-examples collisions
   --yes             Auto-confirm prompts (including --update file prompts)
+  --auto-update     During --update, apply changed CLARE-managed files and
+                    installed extension updates without prompting
   --no-setup        Skip running setup wizard after install/update
   --setup-only      Run setup flow only (internal use)
   --install-examples <path>
@@ -440,7 +443,7 @@ copy_dir_update() {
 #   - Identical file: skip silently
 #   - Dry-run: print what would happen, return
 #   - Fresh install: overwrite without prompting
-#   - --yes or no TTY: auto-confirm
+#   - --yes, --auto-update, or no TTY: auto-confirm
 #   - Interactive: prompt [U]pdate / (d)iff / (s)kip / (a)bort
 #   Returns 0 on success/skip, 1 on user abort.
 prompt_update_file() {
@@ -476,8 +479,8 @@ prompt_update_file() {
     return 0
   fi
 
-  # --yes or no TTY — auto-confirm
-  if [[ "$YES" == "true" ]] || ! $HAS_TTY; then
+  # --yes, --auto-update, or no TTY — auto-confirm
+  if [[ "$YES" == "true" || "$AUTO_UPDATE" == "true" ]] || ! $HAS_TTY; then
     cp "$src" "$dst"
     info "  updated: $rel"
     return 0
@@ -739,6 +742,241 @@ setup_maybe_migrate_legacy_extensions() {
 
   success "Migrated legacy extensions config to current defaults"
   info "Backup created: ${backup_file#"$setup_target"/}"
+}
+
+list_extension_names() {
+  local config_file="$1"
+
+  awk '
+    function trim(s) {
+      gsub(/^[[:space:]]+/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      return s
+    }
+
+    /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
+      name = $0
+      sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", name)
+      sub(/[[:space:]]*#.*/, "", name)
+      gsub(/"/, "", name)
+      name = trim(name)
+      if (name != "") {
+        print name
+      }
+    }
+  ' "$config_file"
+}
+
+extract_extension_block() {
+  local config_file="$1"
+  local extension_name="$2"
+  local output_file="$3"
+
+  awk -v ext_name="$extension_name" '
+    function trim(s) {
+      gsub(/^[[:space:]]+/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      return s
+    }
+
+    function parsed_name(line, name) {
+      name = line
+      sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", name)
+      sub(/[[:space:]]*#.*/, "", name)
+      gsub(/"/, "", name)
+      return trim(name)
+    }
+
+    /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
+      if (in_block) {
+        exit
+      }
+      in_block = (parsed_name($0) == ext_name)
+    }
+
+    in_block {
+      print
+      found = 1
+    }
+
+    END {
+      exit(found ? 0 : 1)
+    }
+  ' "$config_file" >"$output_file"
+}
+
+set_extension_block_enabled_state() {
+  local block_file="$1"
+  local state="$2"
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk -v state="$state" '
+    done == 0 && /^[[:space:]]*enabled:[[:space:]]*/ {
+      sub(/enabled:[[:space:]]*(true|false)/, "enabled: " state)
+      done = 1
+    }
+
+    { print }
+  ' "$block_file" >"$tmp_file"
+
+  mv "$tmp_file" "$block_file"
+}
+
+replace_extension_block() {
+  local config_file="$1"
+  local extension_name="$2"
+  local replacement_file="$3"
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  awk -v ext_name="$extension_name" -v replacement_file="$replacement_file" '
+    BEGIN {
+      while ((getline line < replacement_file) > 0) {
+        replacement = replacement line ORS
+      }
+      close(replacement_file)
+    }
+
+    function trim(s) {
+      gsub(/^[[:space:]]+/, "", s)
+      gsub(/[[:space:]]+$/, "", s)
+      return s
+    }
+
+    function parsed_name(line, name) {
+      name = line
+      sub(/^[[:space:]]*-[[:space:]]*name:[[:space:]]*/, "", name)
+      sub(/[[:space:]]*#.*/, "", name)
+      gsub(/"/, "", name)
+      return trim(name)
+    }
+
+    /^[[:space:]]*-[[:space:]]*name:[[:space:]]*/ {
+      if (in_block) {
+        in_block = 0
+      }
+
+      if (parsed_name($0) == ext_name) {
+        printf "%s", replacement
+        in_block = 1
+        replaced = 1
+        next
+      }
+    }
+
+    in_block {
+      next
+    }
+
+    { print }
+
+    END {
+      exit(replaced ? 0 : 1)
+    }
+  ' "$config_file" >"$tmp_file"
+
+  mv "$tmp_file" "$config_file"
+}
+
+prompt_update_extension() {
+  local config_file="$1"
+  local latest_file="$2"
+  local extension_name="$3"
+  local setup_target="$4"
+  local rel="${config_file#"$setup_target"/}"
+  local installed_block latest_block latest_prepared current_enabled
+
+  installed_block="$(mktemp)"
+  latest_block="$(mktemp)"
+  latest_prepared="$(mktemp)"
+
+  if ! extract_extension_block "$config_file" "$extension_name" "$installed_block"; then
+    rm -f "$installed_block" "$latest_block" "$latest_prepared"
+    return 0
+  fi
+
+  if ! extract_extension_block "$latest_file" "$extension_name" "$latest_block"; then
+    rm -f "$installed_block" "$latest_block" "$latest_prepared"
+    return 0
+  fi
+
+  cp "$latest_block" "$latest_prepared"
+  current_enabled="$(setup_get_extension_enabled_state "$config_file" "$extension_name")"
+  if [[ "$current_enabled" == "true" || "$current_enabled" == "false" ]]; then
+    set_extension_block_enabled_state "$latest_prepared" "$current_enabled"
+  fi
+
+  if cmp -s "$installed_block" "$latest_prepared"; then
+    rm -f "$installed_block" "$latest_block" "$latest_prepared"
+    return 0
+  fi
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    echo "  ~ $rel ($extension_name extension changed)"
+    rm -f "$installed_block" "$latest_block" "$latest_prepared"
+    return 0
+  fi
+
+  if [[ "$YES" == "true" || "$AUTO_UPDATE" == "true" ]] || ! $HAS_TTY; then
+    replace_extension_block "$config_file" "$extension_name" "$latest_prepared"
+    info "  updated: $rel ($extension_name extension)"
+    rm -f "$installed_block" "$latest_block" "$latest_prepared"
+    return 0
+  fi
+
+  while true; do
+    printf "  %s extension '%s' changed — [U]pdate / (d)iff / (s)kip / (a)bort: " "$rel" "$extension_name" >/dev/tty
+    local choice
+    read -r choice </dev/tty
+    choice="${choice:-u}"
+    case "${choice,,}" in
+      u | update)
+        replace_extension_block "$config_file" "$extension_name" "$latest_prepared"
+        success "  updated: $rel ($extension_name extension)"
+        rm -f "$installed_block" "$latest_block" "$latest_prepared"
+        return 0
+        ;;
+      d | diff)
+        if command -v diff >/dev/null 2>&1; then
+          diff -u "$installed_block" "$latest_prepared" \
+            --label "installed/$rel:$extension_name" \
+            --label "new/$rel:$extension_name" || true
+        else
+          warn "  diff not available; showing extension block sizes instead"
+          echo "    installed: $(wc -c <"$installed_block") bytes"
+          echo "    new:       $(wc -c <"$latest_prepared") bytes"
+        fi
+        ;;
+      s | skip)
+        info "  skipped: $rel ($extension_name extension)"
+        rm -f "$installed_block" "$latest_block" "$latest_prepared"
+        return 0
+        ;;
+      a | abort)
+        error "Update aborted by user."
+        rm -f "$installed_block" "$latest_block" "$latest_prepared"
+        return 1
+        ;;
+      *)
+        echo "  Invalid choice. Enter u, d, s, or a." >/dev/tty
+        ;;
+    esac
+  done
+}
+
+update_installed_extensions() {
+  local config_file="$1"
+  local latest_file="$2"
+  local setup_target="$3"
+  local extension_name
+
+  [[ -f "$config_file" && -f "$latest_file" ]] || return 0
+
+  while IFS= read -r extension_name; do
+    [[ -n "$extension_name" ]] || continue
+    prompt_update_extension "$config_file" "$latest_file" "$extension_name" "$setup_target" || exit "$EXIT_ABORT"
+  done < <(list_extension_names "$config_file")
 }
 
 SETUP_INSTALLED_SKILLS=""
@@ -1178,6 +1416,10 @@ while [[ $# -gt 0 ]]; do
       YES=true
       shift
       ;;
+    --auto-update)
+      AUTO_UPDATE=true
+      shift
+      ;;
     --no-setup)
       RUN_SETUP=false
       shift
@@ -1238,6 +1480,11 @@ header "CLARE AI-Assisted Development Framework
 
 if [[ -n "$EXTRACT_PATH" && ("$TARGET_DIR" != "$PWD" || "$DRY_RUN" == "true" || "$YES" == "true") ]]; then
   error "--extract cannot be combined with --target/positional target, --dry-run, or --yes"
+  exit "$EXIT_USAGE"
+fi
+
+if [[ "$AUTO_UPDATE" == "true" && "$UPDATE" != "true" ]]; then
+  error "--auto-update requires --update"
   exit "$EXIT_USAGE"
 fi
 
@@ -1417,6 +1664,10 @@ copy_file_if_missing "$SOURCE_ROOT/install/clare/verify-local.sh" "$TARGET_DIR/c
 copy_file_if_missing "$SOURCE_ROOT/install/clare/autonomy.yml" "$TARGET_DIR/clare/autonomy.yml"
 copy_file_if_missing "$SOURCE_ROOT/clare/extensions.yml" "$TARGET_DIR/clare/extensions.yml"
 copy_file_if_missing "$SOURCE_ROOT/install/root/.gitignore" "$TARGET_DIR/.gitignore"
+
+if [[ "$is_fresh_install" != "true" ]]; then
+  update_installed_extensions "$TARGET_DIR/clare/extensions.yml" "$SOURCE_ROOT/clare/extensions.yml" "$TARGET_DIR"
+fi
 
 # Keep already-installed generic skills current.
 if [[ -d "$TARGET_DIR/.github/prompts" ]]; then
