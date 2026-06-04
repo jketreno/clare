@@ -1081,6 +1081,23 @@ strip_yaml_scalar_quotes() {
   printf '%s' "$value"
 }
 
+print_install_hint() {
+  local prefix="$1"
+  local hint="$2"
+
+  hint="${hint//\\n/$'\n'}"
+
+  local first_line=true
+  while IFS= read -r hint_line || [[ -n "$hint_line" ]]; do
+    if $first_line; then
+      echo "  ${prefix}${hint_line}"
+      first_line=false
+    else
+      echo "  ${hint_line}"
+    fi
+  done <<<"$hint"
+}
+
 check_extensions() {
   local extensions_file="$PROJECT_ROOT/clare/extensions.yml"
   [[ -f "$extensions_file" ]] || return 0
@@ -1164,7 +1181,7 @@ run_extension() {
       echo ""
       echo "  '$name' is enabled in clare/extensions.yml but '$command' is not installed."
       echo ""
-      echo "  To install:  $install_hint"
+      print_install_hint "To install:  " "$install_hint"
       [[ -n "$url" ]] && echo "  Project:     $url"
       echo ""
       echo "  To disable this extension:"
