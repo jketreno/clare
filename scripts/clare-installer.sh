@@ -149,6 +149,10 @@ Options:
   --setup-only      Run setup flow only (internal use)
   --install-examples <path>
                     Extract CLARE examples to <path> and exit
+  --install-skill <list|all>
+                    Non-interactively install skills during setup. Pass a
+                    quoted, space-separated list of numeric indices (as shown
+                    in the skill prompt) or "all".
   --extract <path>  Extract full embedded payload only, do not install/update
   
 Setup flow (runs by default after install/update unless --no-setup):

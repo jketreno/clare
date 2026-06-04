@@ -54,6 +54,10 @@ If you edited no files this turn, state "no edits this turn — verify-ci.sh not
 
 Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` remains the source of truth.
 
+## Linter Integrity
+
+Fix what the linters and `./clare/verify-ci.sh` flag — never circumvent it. When complexity or other checks are enabled, do not silence findings with per-file/per-line suppressions (`// eslint-disable complexity`, `# noqa`, `# type: ignore`, `nolint`), do not raise thresholds in `clare/extensions.yml`, and do not exclude a file to dodge a fix. Refactor to satisfy the check; if a limit is genuinely wrong, raise it with the user rather than changing it silently to get green.
+
 ## PLAN Mode Template
 
 When asked to implement something complex, present this before writing code:

@@ -4,8 +4,8 @@ This folder contains a small Docker environment to run an end-to-end install smo
 
 Purpose
 - Build a reproducible Ubuntu 26.04 image with Go, Node (LTS), and Python (with venv/pipx).
-- Clone a repository specified by `REPO_URL` and attempt common installation commands (best-effort).
-- If the repository contains `clare/verify-ci.sh`, run it with `--fast` to validate CLARE scripts.
+- Clone a repository specified by `REPO_URL` and install CLARE into it from the mounted workspace.
+- If the resulting repository contains `clare/verify-ci.sh`, run it with `--fast` to validate the installed CLARE scripts.
 
 Usage
 
@@ -30,5 +30,5 @@ CLARE-based install steps
 - This harness requires the target repository to be public (HTTPS). SSH-style URLs are not supported by the wrapper.
 
 Notes
-- The entrypoint performs a best-effort sequence of install steps (install.sh, scripts/install.sh, `npm ci`, `make install`, Python venv installs, `go build`). It does not try to parse arbitrary README prose.
-- The goal is to verify the runtime/toolchain presence and that the project's install scripts can execute in a clean Ubuntu 26.04 environment.
+- The entrypoint clones `REPO_URL`, then installs CLARE into the clone using the mounted workspace: it runs `scripts/clare-installer.sh` directly from the mount, or — if the mount has no installer — falls back to a release-installer URL parsed from the mounted README, or finally to a fresh `git clone` of the CLARE repo. It does not run project-specific install commands (`npm ci`, `make install`, venv installs, `go build`) or parse arbitrary README prose.
+- After install, if `clare/verify-ci.sh` exists it is run with `--fast`. The goal is to verify that CLARE installs and its scripts execute in a clean Ubuntu 26.04 environment.
