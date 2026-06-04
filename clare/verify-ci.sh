@@ -1177,6 +1177,7 @@ run_extension() {
       echo "    Edit clare/extensions.yml and set enabled: false for '$name'"
       echo ""
     } >"$out_file"
+    cat "$out_file"
     FAILED_OUTPUTS["$ext_id"]="$out_file"
     CHECK_COMMANDS["$ext_id"]="Install: $install_hint"
     # Note: fail "$ext_id" above already appended to FAILED_CHECKS; do not append again.
