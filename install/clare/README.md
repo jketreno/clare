@@ -37,6 +37,7 @@ Run the image mounted at the project root:
 
 ```bash
 docker run --rm -v "$PWD":/work -w /work clare-verify
+```
 
 Go support in Dockerfile
 
@@ -64,10 +65,9 @@ The installer supports non-interactive skill installation using `--install-skill
 ./scripts/clare-installer.sh --target /path/to/project --install-skill "1"
 ./scripts/clare-installer.sh --target /path/to/project --install-skill "all"
 ```
-```
 
 Notes
-- The Dockerfile is intentionally minimal; add additional runtimes (Go, Rust)
-  if you need to run language-specific checks in `verify-ci.sh`.
+- The Dockerfile installs Go by default; pass `--build-arg GO_VERSION=` to skip it,
+  and add other runtimes (e.g. Rust) if you need them for `verify-ci.sh` checks.
 - The script tries to use Python 3 to produce JSON; if Python is unavailable the
   script will still print a human-readable report but JSON mode will fail.

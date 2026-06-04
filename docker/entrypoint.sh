@@ -15,85 +15,12 @@ echo "Cloning $REPO_URL (branch: $BRANCH) into $CLONE_DIR"
 if [ -d "$CLONE_DIR" ]; then
   rm -rf "$CLONE_DIR"
 fi
+
+# Only public HTTPS repositories are supported. SSH/private-repo support was removed.
 case "$REPO_URL" in
   git@* | ssh://*)
-    echo "Detected SSH-style repository URL"
-
-    # Detect whether $HOME/.ssh is a mount (works even if permissions prevent access)
-    is_mounted=false
-    if grep -qF "$HOME/.ssh" /proc/self/mountinfo 2>/dev/null || grep -qF "$HOME/.ssh" /proc/mounts 2>/dev/null; then
-      is_mounted=true
-    fi
-
-    # Default SSH dir we'll operate on; may fall back to /tmp/ssh if $HOME isn't writable
-    SSH_DIR="$HOME/.ssh"
-
-    # If caller mounted keys into /opt/ssh (read-only), try copying into $HOME; if that fails, copy into a temporary writable dir
-    if [ -d /opt/ssh ]; then
-      echo "Found mounted SSH at /opt/ssh — attempting to copy into $HOME/.ssh"
-
-      # Try writing into $HOME first
-      if mkdir -p "$HOME/.ssh" >/dev/null 2>&1 && touch "$HOME/.ssh/.ssh_write_test" >/dev/null 2>&1; then
-        rm -f "$HOME/.ssh/.ssh_write_test" || true
-        cp -a /opt/ssh/. "$HOME/.ssh/" 2>/dev/null || cp -a /opt/ssh/* "$HOME/.ssh/" 2>/dev/null || true
-        chmod 700 "$HOME/.ssh" 2>/dev/null || true
-        find "$HOME/.ssh" -type f -exec chmod 600 {} \; 2>/dev/null || true
-        SSH_DIR="$HOME/.ssh"
-      else
-        echo "Cannot write to $HOME — copying SSH keys into temporary directory"
-        TMP_SSH_DIR=$(mktemp -d 2>/dev/null || echo "/tmp/ssh.$$")
-        cp -a /opt/ssh/. "$TMP_SSH_DIR/" 2>/dev/null || cp -a /opt/ssh/* "$TMP_SSH_DIR/" 2>/dev/null || true
-        chmod 700 "$TMP_SSH_DIR" 2>/dev/null || true
-        find "$TMP_SSH_DIR" -type f -exec chmod 600 {} \; 2>/dev/null || true
-        SSH_DIR="$TMP_SSH_DIR"
-      fi
-    elif [ "$is_mounted" = true ] || [ -d "$HOME/.ssh" ]; then
-      SSH_DIR="$HOME/.ssh"
-    fi
-
-    if [ -d "$SSH_DIR" ]; then
-      echo "Using SSH directory $SSH_DIR — attempting to prepare keys"
-
-      # Try to set safe permissions if writable; ignore failures for read-only mounts
-      find "$SSH_DIR" -maxdepth 0 -type d -exec chmod 700 {} \; >/dev/null 2>&1 || true
-      find "$SSH_DIR" -type f -exec chmod 600 {} \; >/dev/null 2>&1 || true
-
-      # Determine host for known_hosts management
-      if echo "$REPO_URL" | grep -q '^git@'; then
-        host=$(echo "$REPO_URL" | cut -d'@' -f2 | cut -d: -f1)
-      else
-        host=$(echo "$REPO_URL" | sed -E 's#ssh://([^/]+)/.*#\1#')
-      fi
-
-      # If SSH_DIR is writable, append host key; otherwise fall back to disabling strict host checking
-      if touch "$SSH_DIR/.ssh_write_test" >/dev/null 2>&1; then
-        rm -f "$SSH_DIR/.ssh_write_test" || true
-        if [ -n "$host" ]; then
-          echo "Ensuring host key for $host in $SSH_DIR/known_hosts"
-          mkdir -p "$SSH_DIR"
-          if ! ssh-keygen -F "$host" >/dev/null 2>&1; then
-            ssh-keyscan -H "$host" >>"$SSH_DIR/known_hosts" 2>/dev/null || true
-          fi
-        fi
-      else
-        echo "Note: $SSH_DIR appears to be read-only or not writable — attempting to use an identity file (if present) and disabling strict host checking to prevent interactive prompts. Clone will fail quickly if key requires a passphrase."
-        identity=""
-        for k in id_ed25519 id_rsa id_ecdsa id_dsa; do
-          if [ -f "$SSH_DIR/$k" ]; then
-            identity="$SSH_DIR/$k"
-            break
-          fi
-        done
-        if [ -n "$identity" ]; then
-          echo "Using identity file $identity for SSH operations"
-          export GIT_SSH_COMMAND="ssh -i $identity -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o BatchMode=yes"
-        else
-          export GIT_SSH_COMMAND='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o BatchMode=yes'
-        fi
-      fi
-    else
-      echo "Warning: SSH URL but no SSH keys found at /opt/ssh or $HOME/.ssh. Clone may fail without credentials."
-    fi
+    echo "ERROR: SSH-style repository URLs are not supported. Use a public HTTPS URL."
+    exit 2
     ;;
 esac
 

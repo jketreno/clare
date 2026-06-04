@@ -48,7 +48,7 @@ Do not invoke it again for any other reason.
 
 - verify-ci.sh result: PASS/FAIL
 - command used
-- whether `--fast` or `--fix` was used (if applicable)
+- whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable)
 
 If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it. If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
 
