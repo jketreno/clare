@@ -77,7 +77,7 @@ for k in "${!counts[@]}"; do
   if [[ "$first" == true ]]; then first=false; else echo "," >>"$TMPDIR/fileCounts.json"; fi
   printf '  "%s": %d' "${k}" "${counts[$k]}" >>"$TMPDIR/fileCounts.json"
 done
-echo "\n}" >>"$TMPDIR/fileCounts.json"
+printf '\n}\n' >>"$TMPDIR/fileCounts.json"
 
 # 2) Detect key config files
 configs=(
@@ -96,7 +96,7 @@ configs=(
   clare/autonomy.yml
   clare/extensions.yml
 )
->"$TMPDIR/configs.txt"
+: >"$TMPDIR/configs.txt"
 for c in "${configs[@]}"; do
   if [[ -f "$PROJECT_ROOT/$c" || -d "$PROJECT_ROOT/$c" ]]; then
     echo "$c" >>"$TMPDIR/configs.txt"
@@ -105,7 +105,7 @@ done
 
 # 3) Parse verify scripts for known tool tokens
 verify_files=("clare/verify-ci.sh" "clare/verify-local.sh")
->"$TMPDIR/tools.txt"
+: >"$TMPDIR/tools.txt"
 for vf in "${verify_files[@]}"; do
   if [[ -f "$PROJECT_ROOT/$vf" ]]; then
     # Extract tokens of likely tools
@@ -162,7 +162,7 @@ PY
 }
 
 # 4) Build verifyTools JSON structure
->"$TMPDIR/verifyTools.jsonl"
+: >"$TMPDIR/verifyTools.jsonl"
 if [[ -f "$TMPDIR/tools.txt" ]]; then
   while IFS='|' read -r tool where; do
     [[ -z "$tool" ]] && continue

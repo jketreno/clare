@@ -19,7 +19,7 @@ Usage
 
 CLARE-based install steps
 
-- This test harness runs the install steps from the local CLARE workspace (the harness repo), not the cloned project's README. The runner will mount your CLARE workspace into the container at `/work/host_clare` (read-only), the entrypoint copies the mount into a temporary writable directory inside the container, and then executes the same best-effort install checks from that copy.
+- This test harness runs the install steps from the local CLARE workspace (the harness repo), not the cloned project's README. The runner mounts your CLARE workspace into the container at `/work/host_clare` (read-only), and the entrypoint runs `scripts/clare-installer.sh` directly from that mount against the cloned project. If the mount has no installer script, the entrypoint falls back to a release-installer URL parsed from the mounted README, or finally to a fresh `git clone` of the CLARE repo.
 
 - For typical usage, run the wrapper which automatically mounts the CLARE workspace for you:
 

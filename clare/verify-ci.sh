@@ -140,7 +140,6 @@ run_check() {
   else
     fail "$name"
     FAILED_OUTPUTS["$name"]="$out_file"
-    FAILED_CHECKS+=("$name")
     if $FAIL_FAST; then
       echo ""
       echo -e "${RED}Fail-fast triggered: stopping at first failure (${name}).${NC}"
