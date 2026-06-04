@@ -20,6 +20,9 @@ RUN YQ_VERSION=v4.41.1 && \
 
 # Install Go from official tarball (optional - override GO_VERSION at build time)
 ARG GO_VERSION=1.22.9
+# SHFMT_VERSION is pinned (not @latest) so a future shfmt release that raises its
+# required Go version can't silently break this image's build.
+ARG SHFMT_VERSION=v3.10.0
 RUN set -eux; \
     if [ -n "${GO_VERSION:-}" ]; then \
       echo "Installing Go ${GO_VERSION}"; \
@@ -36,9 +39,11 @@ RUN set -eux; \
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOBIN=/usr/local/bin
 
-# Install shfmt via `go install` if Go is available; otherwise skip
+# Install shfmt via `go install` if Go is available; otherwise skip. When Go IS
+# present the install must succeed — failing loudly here surfaces a broken pin or
+# a Go-version mismatch instead of silently shipping an image without shfmt.
 RUN if command -v go >/dev/null 2>&1; then \
-      go install mvdan.cc/sh/v3/cmd/shfmt@latest || true; \
+      go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"; \
     else \
       echo 'go not found; skipping shfmt install via go'; \
     fi

@@ -1,8 +1,11 @@
 FROM ubuntu:26.04
 
-ARG GOLANG_VERSION=1.22.9
+ARG GO_VERSION=1.22.9
+# SHFMT_VERSION is pinned (not @latest) so a future shfmt release that raises its
+# required Go version can't silently break this image's build.
+ARG SHFMT_VERSION=v3.10.0
 ENV DEBIAN_FRONTEND=noninteractive \
-    GOLANG_VERSION=${GOLANG_VERSION} \
+    GO_VERSION=${GO_VERSION} \
     GOPATH=/home/tester/go \
     PATH=/usr/local/go/bin:/home/tester/go/bin:/home/tester/.local/bin:/work/bin:$PATH
 
@@ -20,13 +23,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 # Install Go (architecture derived from the build platform)
 RUN goarch="$(dpkg --print-architecture)" \
-  && curl -fsSL "https://go.dev/dl/go${GOLANG_VERSION}.linux-${goarch}.tar.gz" -o /tmp/go.tar.gz \
+  && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${goarch}.tar.gz" -o /tmp/go.tar.gz \
   && tar -C /usr/local -xzf /tmp/go.tar.gz \
   && rm /tmp/go.tar.gz
 
 # Install shfmt system-wide so the verify-local.sh shell-format check can run.
 # GOBIN forces the binary into /usr/local/bin (on PATH for all users).
-RUN GOBIN=/usr/local/bin /usr/local/go/bin/go install mvdan.cc/sh/v3/cmd/shfmt@latest
+RUN GOBIN=/usr/local/bin /usr/local/go/bin/go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}"
 
 # Install pipx for isolated CLI installs
 RUN python3 -m pip install --upgrade pip setuptools wheel \

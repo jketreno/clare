@@ -117,6 +117,15 @@ validate_typescript() {
     return 0
   fi
 
+  # The fixtures symlink $REPO_ROOT/node_modules so verify-ci.sh can resolve
+  # eslint from the temp project. Without it the symlink dangles and resolution
+  # fails — skip cleanly (matching the complexipy not-runnable guard below)
+  # rather than reporting a confusing failure.
+  if [[ ! -d "$REPO_ROOT/node_modules" ]]; then
+    warn "TypeScript validation (node_modules missing; run 'npm install' first)"
+    return 0
+  fi
+
   info "Validating TypeScript complexity extension"
 
   local fail_project="$TMP_ROOT/ts-fail"
