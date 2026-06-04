@@ -770,6 +770,17 @@ list_extension_names() {
 }
 
 extract_extension_block() {
+  # Block boundaries are delimited solely by `- name:` lines: a block runs from
+  # its own name line up to (but not including) the next one. Consequences of
+  # this assumption, both acceptable for extensions.yml's current layout:
+  #   - Header comments that precede the *next* extension are attributed to the
+  #     *current* block, so editing a later extension's doc comment can surface a
+  #     spurious "this block changed" prompt.
+  #   - If a matched extension were the last list item followed by other
+  #     top-level YAML keys, those keys would be swept into the block. Today the
+  #     last extension (file-size) is the final content in the file, so this
+  #     cannot bite — but a future top-level key after the list would need a
+  #     dedent-aware boundary here and in replace_extension_block.
   local config_file="$1"
   local extension_name="$2"
   local output_file="$3"

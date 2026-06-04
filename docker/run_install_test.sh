@@ -3,11 +3,12 @@ set -euo pipefail
 IFS=$'\n\t'
 
 usage() {
-  echo "Usage: $0 <repo-url> [branch] [<extra docker args>...]" >&2
+  echo "Usage: $0 <repo-url> [branch] [<extra 'docker run' args>...]" >&2
   echo "" >&2
+  echo "Extra args (3rd+) are passed to 'docker run', not 'docker build'." >&2
   echo "Examples:" >&2
   echo "  $0 https://github.com/owner/repo.git" >&2
-  echo "  $0 https://github.com/owner/repo.git main --no-cache" >&2
+  echo "  $0 https://github.com/owner/repo.git main --pull always" >&2
   exit 1
 }
 
