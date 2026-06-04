@@ -175,7 +175,7 @@ Domain-specific examples (API endpoint skills, type-sync tests, etc.) are availa
 ./clare-installer-vX.Y.Z.sh --install-examples /path/to/examples
 ```
 
-New: env-scan skill & Dockerfile.clare
+### env-scan skill & Dockerfile.clare
 
 The installer includes a new `env-scan` helper (see `install/clare/scripts/clare-env-scan.sh`) that inspects your repository for common files, extracts tools referenced by `clare/verify-*.sh`, and recommends VS Code extensions. A companion image, `install/Dockerfile.clare`, provides a minimal environment to run `./clare/verify-ci.sh --fast` and now installs the Go toolchain by default (override with `--build-arg GO_VERSION=`).
 

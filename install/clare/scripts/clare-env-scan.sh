@@ -111,7 +111,12 @@ for vf in "${verify_files[@]}"; do
     # Extract tokens of likely tools. The `|| true` is scoped so the rest of
     # the pipeline always runs on grep's output (matches go to the transform);
     # without the braces, `|| true` would short-circuit the whole pipe.
-    { grep -Eio 'node|npm|npx|eslint|prettier|typescript|tsc|yq|python3|python|pipx|pip|pyyaml|shellcheck|shfmt|rg|ripgrep|ruff|flake8|mypy|pytest|go|golangci-lint|golint|cargo|rust|jq|docker|tput|git|shfmt|shellmetrics|complexipy' "$PROJECT_ROOT/$vf" 2>/dev/null || true; } \
+    #
+    # Tokens are wrapped in \b…\b word boundaries so short names like `go` and
+    # `git` don't match inside unrelated words (e.g. `golang`, `digit`). Longer
+    # alternatives (golangci-lint, python3, ripgrep) are listed before their
+    # shorter prefixes so leftmost-first alternation prefers the specific match.
+    { grep -Eio '\b(golangci-lint|golint|ripgrep|typescript|shellcheck|shellmetrics|complexipy|prettier|pyyaml|python3|pytest|flake8|eslint|docker|cargo|shfmt|python|pipx|mypy|tput|rust|ruff|node|npm|npx|tsc|pip|yq|rg|go|jq|git)\b' "$PROJECT_ROOT/$vf" 2>/dev/null || true; } \
       | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' '\n' | sort -u | while read -r token; do
       [[ -z "$token" ]] && continue
       echo "$token|$vf"

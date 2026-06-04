@@ -141,6 +141,8 @@ run_check() {
     fail "$name"
     FAILED_OUTPUTS["$name"]="$out_file"
     if $FAIL_FAST; then
+      # print_failure_summary is defined later in the file; this is safe because
+      # run_check is only invoked from main(), after all functions are parsed.
       echo ""
       echo -e "${RED}Fail-fast triggered: stopping at first failure (${name}).${NC}"
       print_failure_summary
@@ -1079,7 +1081,7 @@ run_extension() {
     } >"$out_file"
     FAILED_OUTPUTS["$ext_id"]="$out_file"
     CHECK_COMMANDS["$ext_id"]="Install: $install_hint"
-    FAILED_CHECKS+=("$ext_id")
+    # Note: fail "$ext_id" above already appended to FAILED_CHECKS; do not append again.
     if $FAIL_FAST; then
       print_failure_summary
       exit 1
