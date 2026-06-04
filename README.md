@@ -231,8 +231,8 @@ Extension name: `golangci-lint-complexity`
 Install requirements:
 
 ```bash
-# requires a working Go toolchain first
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+# binary will be $(go env GOPATH)/bin/golangci-lint
+curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.12.2
 ```
 
 Notes:

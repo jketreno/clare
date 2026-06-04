@@ -45,14 +45,16 @@ extensions:
   # verify-ci.sh enforces threshold via a generated config for both linters.
   # Use extra_flags for additional runner options (for example timeout/output).
   #
-  # Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+  # Install:
+  #   # binary will be $(go env GOPATH)/bin/golangci-lint
+  #   curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.12.2
   # Project: https://golangci-lint.run/
   #
   - name: golangci-lint-complexity
     enabled: false
     description: "Complexity analysis for Go via golangci-lint"
     command: "golangci-lint"
-    install_hint: "go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+    install_hint: "# binary will be $(go env GOPATH)/bin/golangci-lint\ncurl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.12.2"
     project_url: "https://golangci-lint.run/"
     options:
       # Enforced threshold for cyclop.max-complexity and gocognit.min-complexity

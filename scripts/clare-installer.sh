@@ -1231,10 +1231,19 @@ setup_load_extension_catalog() {
 }
 
 setup_print_extension_catalog() {
-  local i
+  local i hint hint_line first_line
   for i in "${!EXT_NAMES[@]}"; do
+    hint="${EXT_HINTS[$i]//\\n/$'\n'}"
     printf "  %d. %s — %s\n" "$((i + 1))" "${EXT_NAMES[$i]}" "${EXT_DESCS[$i]}"
-    printf "     Install: %s\n" "${EXT_HINTS[$i]}"
+    first_line=true
+    while IFS= read -r hint_line || [[ -n "$hint_line" ]]; do
+      if $first_line; then
+        printf "     Install: %s\n" "$hint_line"
+        first_line=false
+      else
+        printf "              %s\n" "$hint_line"
+      fi
+    done <<<"$hint"
     [[ -n "${EXT_URLS[$i]}" ]] && printf "     Project: %s\n" "${EXT_URLS[$i]}"
     echo ""
   done
