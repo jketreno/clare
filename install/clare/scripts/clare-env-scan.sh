@@ -37,7 +37,15 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --vscode-dir)
-      VSCODE_DIR="${2:-.vscode}"
+      # Guard the value: a trailing `--vscode-dir` with no argument would make
+      # `shift 2` fail on a single-element list under `set -e`, exiting with no
+      # message. Require an explicit value instead.
+      if [[ $# -lt 2 || "$2" == -* ]]; then
+        echo "--vscode-dir requires a value" >&2
+        usage
+        exit 2
+      fi
+      VSCODE_DIR="$2"
       shift 2
       ;;
     --help | -h)

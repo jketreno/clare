@@ -364,7 +364,9 @@ migrate_legacy_clear_install() {
     )
     for item in "${legacy_items[@]}"; do
       if [[ -e "$old_dir/$item" ]]; then
-        rm -rf "$old_dir/$item"
+        # ${old_dir:?} guards against an empty $old_dir ever expanding the path
+        # to "/$item" and removing from the filesystem root.
+        rm -rf "${old_dir:?}/$item"
         info "Removed legacy renamed path: clear/$item"
       fi
     done

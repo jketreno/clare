@@ -55,6 +55,10 @@ SELECTED_TEST_REQUESTS=()
 # loop all derive from this — add stages/steps here and nowhere else.
 # Functions are referenced by name only; they are defined later in the file and
 # are not resolved until main() runs the loop.
+#
+# The STAGE_N_STEPS arrays are read via `local -n` namerefs (see run_stage,
+# print_stage_list, parse_selected_stages), which shellcheck cannot trace —
+# hence the SC2034 ("appears unused") suppression on each.
 STAGES=(
   "Build"
   "Linting"
@@ -64,29 +68,34 @@ STAGES=(
   "Extensions"
   "Project-Specific Checks"
 )
+# shellcheck disable=SC2034  # read via `local -n` nameref in run_stage
 STAGE_1_STEPS=(
   "Node.js build|check_build_node"
   "Python syntax check|check_build_python"
   "Go build|check_build_go"
   "Rust build|check_build_rust"
 )
+# shellcheck disable=SC2034  # read via `local -n` nameref in run_stage
 STAGE_2_STEPS=(
   "Node.js lint/type checks|check_lint_node"
   "Python lint/type checks|check_lint_python"
   "Go lint checks|check_lint_go"
 )
+# shellcheck disable=SC2034  # read via `local -n` nameref in run_stage
 STAGE_3_STEPS=(
   "Node.js tests|check_tests_node"
   "Python tests|check_tests_python"
   "Go tests|check_tests_go"
   "Rust tests|check_tests_rust"
 )
+# shellcheck disable=SC2034  # read via `local -n` nameref in run_stage
 STAGE_4_STEPS=(
   "Node.js architecture tests|check_architecture_node"
   "Python architecture tests|check_architecture_python"
 )
 STAGE_5_STEPS=()
 STAGE_6_STEPS=()
+# shellcheck disable=SC2034  # read via `local -n` nameref in run_stage
 STAGE_7_STEPS=(
   "verify-local.sh|source_local_checks"
 )
@@ -321,42 +330,6 @@ run_check() {
       exit 1
     fi
     return 1
-  fi
-}
-
-extract_humans_only_paths() {
-  local autonomy_file="$1"
-
-  if command -v yq >/dev/null 2>&1; then
-    yq -r '.modules[]? | select(.level == "humans-only") | .path // empty' "$autonomy_file" 2>/dev/null || true
-    return 0
-  fi
-
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$autonomy_file" <<'PY' 2>/dev/null || true
-import sys
-from pathlib import Path
-
-try:
-  import yaml
-except Exception:
-  sys.exit(0)
-
-path = Path(sys.argv[1])
-try:
-  data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-except Exception:
-  sys.exit(0)
-
-for module in data.get("modules", []) or []:
-  if not isinstance(module, dict):
-    continue
-  if module.get("level") != "humans-only":
-    continue
-  mod_path = module.get("path")
-  if isinstance(mod_path, str) and mod_path.strip():
-    print(mod_path.strip())
-PY
   fi
 }
 
@@ -773,9 +746,12 @@ default_node_tool_flags() {
   CLARE_DEFAULT_NODE_TOOL_FLAGS_COMPUTED=true
   CLARE_DEFAULT_NODE_TOOL_FLAGS=""
 
-  # Avoid known V8 Turboshaft crashes in Node-based tooling while still allowing
-  # projects to opt out by setting CLARE_NODE_TOOL_FLAGS explicitly.
-  if node_supports_flag "--no-turboshaft"; then
+  # Some environments hit V8 Turboshaft crashes in Node-based tooling. That is a
+  # local/transient issue, so we do NOT disable Turboshaft for every project by
+  # default. Projects that need the workaround opt in with
+  # CLARE_DISABLE_TURBOSHAFT=1 (or set CLARE_NODE_TOOL_FLAGS to supply their own
+  # flags). When opted in, the flag is still gated on Node actually supporting it.
+  if [[ "${CLARE_DISABLE_TURBOSHAFT:-}" == "1" ]] && node_supports_flag "--no-turboshaft"; then
     CLARE_DEFAULT_NODE_TOOL_FLAGS="--no-turboshaft"
   fi
 
@@ -1110,8 +1086,9 @@ check_architecture_node() {
 }
 
 check_architecture_python() {
+  # The --fast skip message is emitted once by check_architecture_node (the
+  # first step in this stage); stay silent here to avoid printing it twice.
   if $FAST_MODE; then
-    warn "Architecture tests skipped (--fast mode)"
     return 0
   fi
 
@@ -1137,6 +1114,10 @@ refresh_autonomy_steps() {
     STAGE_5_STEPS+=("autonomy.yml|check_autonomy_file")
     return 0
   fi
+
+  # First step verifies the file is present (once); boundary steps that follow
+  # only check their own level, so "autonomy.yml found" isn't repeated per path.
+  STAGE_5_STEPS+=("autonomy.yml|check_autonomy_file")
 
   local boundary_path="" boundary_level=""
 
@@ -1238,7 +1219,6 @@ check_humans_only_boundary() {
 
 check_autonomy_boundary() {
   local boundary_path="$1"
-  check_autonomy_file
 
   local boundary_level
   boundary_level="$(autonomy_level_for_path "$boundary_path")"
@@ -1321,72 +1301,6 @@ refresh_extension_steps() {
   done <"$extensions_file"
 
   append_pending_extension_step
-}
-
-check_extensions() {
-  local extensions_file="$PROJECT_ROOT/clare/extensions.yml"
-  [[ -f "$extensions_file" ]] || return 0
-
-  # Parse enabled extensions from YAML (lightweight awk — no yq dependency)
-  local in_extension=false
-  local ext_name="" ext_enabled="" ext_command="" ext_install="" ext_url=""
-  local ext_threshold="" ext_paths="" ext_extra="" ext_file_types="" ext_exclude=""
-  local ext_count_comments="true"
-
-  process_pending_extension() {
-    if [[ -n "$ext_name" && "$ext_enabled" == "true" ]]; then
-      run_extension "$ext_name" "$ext_command" "$ext_install" "$ext_url" \
-        "$ext_threshold" "$ext_paths" "$ext_extra" \
-        "$ext_file_types" "$ext_exclude" "$ext_count_comments"
-    fi
-  }
-
-  while IFS= read -r line; do
-    # Detect start of a new extension block
-    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.*) ]]; then
-      process_pending_extension
-      ext_name="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-      ext_enabled=""
-      ext_command=""
-      ext_install=""
-      ext_url=""
-      ext_threshold=""
-      ext_paths=""
-      ext_extra=""
-      ext_file_types=""
-      ext_exclude=""
-      ext_count_comments="true"
-      in_extension=true
-      continue
-    fi
-
-    $in_extension || continue
-
-    if [[ "$line" =~ ^[[:space:]]*enabled:[[:space:]]*(.*) ]]; then
-      ext_enabled="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*command:[[:space:]]*(.*) ]]; then
-      ext_command="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*install_hint:[[:space:]]*(.*) ]]; then
-      ext_install="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*project_url:[[:space:]]*(.*) ]]; then
-      ext_url="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*threshold:[[:space:]]*(.*) ]]; then
-      ext_threshold="${BASH_REMATCH[1]}"
-    elif [[ "$line" =~ ^[[:space:]]*paths:[[:space:]]*(.*) ]]; then
-      ext_paths="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*extra_flags:[[:space:]]*(.*) ]]; then
-      ext_extra="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*file_types:[[:space:]]*(.*) ]]; then
-      ext_file_types="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*exclude:[[:space:]]*(.*) ]]; then
-      ext_exclude="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    elif [[ "$line" =~ ^[[:space:]]*count_comments:[[:space:]]*(.*) ]]; then
-      ext_count_comments="$(strip_yaml_scalar_quotes "${BASH_REMATCH[1]}")"
-    fi
-  done <"$extensions_file"
-
-  # Process the last extension
-  process_pending_extension
 }
 
 check_extension_by_name() {
