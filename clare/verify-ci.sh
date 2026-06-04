@@ -12,6 +12,8 @@
 #   ./clare/verify-ci.sh           # Run all checks
 #   ./clare/verify-ci.sh --fast    # Skip slow checks (architecture tests)
 #   ./clare/verify-ci.sh --fix     # Auto-fix linting issues where possible
+#   ./clare/verify-ci.sh --list-tests
+#   ./clare/verify-ci.sh --run-tests 1,3,7
 #
 # Customization:
 #   Add project-specific checks to clare/verify-local.sh (not this file).
@@ -38,10 +40,14 @@ FAST_MODE=false
 FIX_MODE=false
 INCLUDE_UNTRACKED=true
 FAIL_FAST=false
+LIST_TESTS=false
+RUN_SELECTED_STAGES=false
+RUN_TESTS_CSV=""
 SUMMARY_LINES=30
 FAILED_CHECKS=()
 declare -A CHECK_COMMANDS=()
 declare -A FAILED_OUTPUTS=()
+declare -A SELECTED_STAGE_ENABLED=()
 
 # Failed checks retain their captured output in temp files so the failure summary
 # can print snippets and a "Full log:" path. Clean those up when the script exits
@@ -64,6 +70,9 @@ Options:
   --fast        Skip slow checks (architecture tests)
   --fix         Auto-fix lint issues where supported
   --fail-fast   Stop at the first failing check and print a concise summary
+  --list-tests  List numbered verification stages and exit
+  --run-tests <csv>
+               Run only selected numbered stages (example: --run-tests 1,3,7)
   --exclude-untracked
                Check only tracked files (exclude untracked files)
   -h, --help    Show this help message and exit
@@ -71,11 +80,27 @@ EOF
 }
 
 # Parse arguments
-for arg in "$@"; do
+while [[ $# -gt 0 ]]; do
+  arg="$1"
   case "$arg" in
     --fast) FAST_MODE=true ;;
     --fix) FIX_MODE=true ;;
     --fail-fast) FAIL_FAST=true ;;
+    --list-tests) LIST_TESTS=true ;;
+    --run-tests)
+      shift
+      if [[ $# -eq 0 || "${1:-}" == --* ]]; then
+        echo "Missing value for --run-tests (expected comma-separated stage numbers)." >&2
+        echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
+        exit 2
+      fi
+      RUN_TESTS_CSV="$1"
+      RUN_SELECTED_STAGES=true
+      ;;
+    --run-tests=*)
+      RUN_TESTS_CSV="${arg#--run-tests=}"
+      RUN_SELECTED_STAGES=true
+      ;;
     --exclude-untracked) INCLUDE_UNTRACKED=false ;;
     -h | --help)
       usage
@@ -87,6 +112,7 @@ for arg in "$@"; do
       exit 2
       ;;
   esac
+  shift
 done
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,6 +159,67 @@ fail() {
 info() { echo -e "${BLUE}ℹ  $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠  $1${NC}"; }
 section() { echo -e "\n${BLUE}── $1 ──${NC}"; }
+
+print_stage_list() {
+  cat <<'EOF'
+Available verify-ci stages:
+  1. Build
+  2. Linting
+  3. Tests
+  4. Architecture Tests
+  5. CLARE Autonomy Boundaries
+  6. Extensions
+  7. Project-Specific Checks
+EOF
+}
+
+parse_selected_stages() {
+  local csv="$1"
+
+  if [[ -z "$csv" ]]; then
+    echo "Missing value for --run-tests (expected comma-separated stage numbers)." >&2
+    echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
+    exit 2
+  fi
+
+  if [[ ! "$csv" =~ ^[1-9][0-9]*(,[1-9][0-9]*)*$ ]]; then
+    echo "Invalid --run-tests value: $csv" >&2
+    echo "Expected comma-separated positive integers, for example: --run-tests 1,3,7" >&2
+    echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
+    exit 2
+  fi
+
+  local stage
+  IFS=',' read -r -a requested_stages <<<"$csv"
+  for stage in "${requested_stages[@]}"; do
+    if ((stage < 1 || stage > 7)); then
+      echo "Unknown verify-ci stage number: $stage" >&2
+      echo "Run './clare/verify-ci.sh --list-tests' to see available stages." >&2
+      exit 2
+    fi
+    SELECTED_STAGE_ENABLED["$stage"]=true
+  done
+}
+
+stage_selected() {
+  local number="$1"
+  if ! $RUN_SELECTED_STAGES; then
+    return 0
+  fi
+  [[ "${SELECTED_STAGE_ENABLED[$number]:-false}" == "true" ]]
+}
+
+run_stage() {
+  local number="$1"
+  local name="$2"
+  local fn="$3"
+
+  if stage_selected "$number"; then
+    "$fn"
+  else
+    info "Skipping stage $number: $name"
+  fi
+}
 
 run_check() {
   local name="$1"
@@ -1321,6 +1408,15 @@ source_local_checks() {
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
+  if $LIST_TESTS; then
+    print_stage_list
+    exit 0
+  fi
+
+  if $RUN_SELECTED_STAGES; then
+    parse_selected_stages "$RUN_TESTS_CSV"
+  fi
+
   echo -e "${BLUE}════════════════════════════════════════════${NC}"
   echo -e "${BLUE}  CLARE — Local CI/CD Verification          ${NC}"
   echo -e "${BLUE}════════════════════════════════════════════${NC}"
@@ -1335,19 +1431,20 @@ main() {
   $HAS_RUST && info "Detected: Rust"
   $FAST_MODE && warn "Fast mode: architecture tests skipped"
   $FIX_MODE && warn "Fix mode: auto-fixing lint issues where possible"
+  $RUN_SELECTED_STAGES && info "Running selected stages: $RUN_TESTS_CSV"
   if $INCLUDE_UNTRACKED; then
     info "File scanning includes untracked files (use --exclude-untracked to limit to tracked files)"
   else
     info "File scanning excludes untracked files"
   fi
 
-  check_build
-  check_lint
-  check_tests
-  check_architecture
-  check_autonomy
-  check_extensions
-  source_local_checks
+  run_stage 1 "Build" check_build
+  run_stage 2 "Linting" check_lint
+  run_stage 3 "Tests" check_tests
+  run_stage 4 "Architecture Tests" check_architecture
+  run_stage 5 "CLARE Autonomy Boundaries" check_autonomy
+  run_stage 6 "Extensions" check_extensions
+  run_stage 7 "Project-Specific Checks" source_local_checks
 
   echo ""
   echo -e "${BLUE}════════════════════════════════════════════${NC}"
