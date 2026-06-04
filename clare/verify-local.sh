@@ -245,6 +245,34 @@ run_forbidden_pipeline_check() {
   fi
 }
 
+run_env_scan_smoke_check() {
+  section "Env-scan Smoke Test"
+
+  local test_script="$PROJECT_ROOT/install/clare/tests/test_scan.sh"
+  if [[ ! -f "$test_script" ]]; then
+    info "No env-scan smoke test found; skipping"
+    return 0
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "python3 not available; skipping env-scan smoke test"
+    return 0
+  fi
+
+  local output_file
+  if ! output_file="$(mktemp)"; then
+    fail "Env-scan smoke test (failed to create temporary output file)"
+    return 1
+  fi
+  if bash "$test_script" >"$output_file" 2>&1; then
+    pass "Env-scan smoke test"
+  else
+    fail "Env-scan smoke test"
+    cat "$output_file"
+  fi
+  rm -f "$output_file"
+}
+
 run_agent_environment_parity_check() {
   section "Agent Environment Parity"
 
@@ -334,3 +362,5 @@ else
 fi
 
 run_agent_environment_parity_check
+
+run_env_scan_smoke_check
