@@ -33,4 +33,30 @@ fi
   exit 3
 }
 
+# Invariant: --apply-extensions must compose with --json. It must write the
+# extensions file AND keep stdout as valid JSON (apply progress goes to stderr).
+# A regression where apply is skipped in JSON mode, or where its messages leak
+# into stdout, must fail this test.
+APPLY_DIR="$(mktemp -d)"
+trap 'rm -f "$OUTPUT"; rm -rf "$APPLY_DIR"' EXIT
+
+bash "$SCRIPT" --json --apply-extensions --vscode-dir "$APPLY_DIR/.vscode" >"$OUTPUT"
+
+if [[ ! -f "$APPLY_DIR/.vscode/extensions.json" ]]; then
+  echo "--json --apply-extensions did not write extensions.json" >&2
+  exit 4
+fi
+
+"${validator[@]}" "$OUTPUT" >/dev/null 2>&1 || {
+  echo "--json --apply-extensions corrupted JSON on stdout; printing raw output:" >&2
+  cat "$OUTPUT"
+  exit 5
+}
+
+"${validator[@]}" "$APPLY_DIR/.vscode/extensions.json" >/dev/null 2>&1 || {
+  echo "written extensions.json is not valid JSON:" >&2
+  cat "$APPLY_DIR/.vscode/extensions.json"
+  exit 6
+}
+
 echo "env-scan smoke test passed"

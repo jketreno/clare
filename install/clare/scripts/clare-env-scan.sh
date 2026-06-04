@@ -217,7 +217,31 @@ cat >"$TMPDIR/recommended_extensions.json" <<JSON
 ]
 JSON
 
+# Write the recommended extensions to <vscode-dir>/extensions.json. Kept in its
+# own function so it runs in both --json and --report modes; otherwise passing
+# --apply-extensions alongside --json would be a silent no-op.
+apply_recommended_extensions() {
+  mkdir -p "$VSCODE_DIR"
+  local extfile="$VSCODE_DIR/extensions.json"
+  if [[ -f "$extfile" ]]; then
+    echo "Backing up existing $extfile -> $extfile.bak" >&2
+    cp "$extfile" "$extfile.bak"
+  fi
+  EXTFILE="$extfile" python3 - <<PY
+import json, os
+extfile = os.environ['EXTFILE']
+rec = json.load(open('$TMPDIR/recommended_extensions.json'))
+with open(extfile, 'w') as f:
+    json.dump({'recommendations': [r['extension'] for r in rec]}, f, indent=2)
+print('Wrote', extfile, file=__import__('sys').stderr)
+PY
+}
+
 # 6) Emit results
+if [[ "$APPLY_EXT" == true ]]; then
+  apply_recommended_extensions
+fi
+
 if [[ "$MODE" == "json" ]]; then
   python3 - <<PY
 import json,sys,os
@@ -282,21 +306,5 @@ import json
 for e in json.load(open('$TMPDIR/recommended_extensions.json')):
   print(f"  - {e['extension']}: {e['reason']}")
 PY
-
-if [[ "$APPLY_EXT" == true ]]; then
-  mkdir -p "$VSCODE_DIR"
-  extfile="$VSCODE_DIR/extensions.json"
-  if [[ -f "$extfile" ]]; then
-    echo "Backing up existing $extfile -> $extfile.bak"
-    cp "$extfile" "$extfile.bak"
-  fi
-  python3 - <<PY
-import json
-rec=json.load(open('$TMPDIR/recommended_extensions.json'))
-with open('$extfile','w') as f:
-  json.dump({'recommendations':[r['extension'] for r in rec]},f,indent=2)
-print('Wrote', '$extfile')
-PY
-fi
 
 exit 0
