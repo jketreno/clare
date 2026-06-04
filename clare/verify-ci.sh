@@ -85,9 +85,7 @@ STAGE_4_STEPS=(
   "Node.js architecture tests|check_architecture_node"
   "Python architecture tests|check_architecture_python"
 )
-STAGE_5_STEPS=(
-  "Autonomy boundaries|check_autonomy_boundaries"
-)
+STAGE_5_STEPS=()
 STAGE_6_STEPS=()
 STAGE_7_STEPS=(
   "verify-local.sh|source_local_checks"
@@ -1124,30 +1122,135 @@ check_architecture_python() {
   fi
 }
 
-check_autonomy_boundaries() {
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+refresh_autonomy_steps() {
+  local autonomy_file="$PROJECT_ROOT/clare/autonomy.yml"
+  STAGE_5_STEPS=()
+
+  if [[ ! -f "$autonomy_file" ]]; then
+    STAGE_5_STEPS+=("autonomy.yml|check_autonomy_file")
+    return 0
+  fi
+
+  local boundary_path="" boundary_level=""
+
+  append_pending_autonomy_step() {
+    if [[ -n "$boundary_path" ]]; then
+      local label="$boundary_path"
+      if [[ -n "$boundary_level" ]]; then
+        label+=" ($boundary_level)"
+      fi
+      STAGE_5_STEPS+=("$label|check_autonomy_boundary|$boundary_path")
+    fi
+  }
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*path:[[:space:]]*(.*) ]]; then
+      append_pending_autonomy_step
+      boundary_path="$(strip_yaml_scalar_quotes "$(trim_whitespace "${BASH_REMATCH[1]}")")"
+      boundary_level=""
+      continue
+    fi
+
+    if [[ -n "$boundary_path" && "$line" =~ ^[[:space:]]*level:[[:space:]]*(.*) ]]; then
+      boundary_level="$(strip_yaml_scalar_quotes "$(trim_whitespace "${BASH_REMATCH[1]}")")"
+    fi
+  done <"$autonomy_file"
+
+  append_pending_autonomy_step
+}
+
+check_autonomy_file() {
   local autonomy_file="$PROJECT_ROOT/clare/autonomy.yml"
   if [[ -f "$autonomy_file" ]]; then
     pass "autonomy.yml found"
-
-    # Check for humans-only paths — warn if git staging area contains any
-    if command -v git &>/dev/null && git -C "$PROJECT_ROOT" rev-parse --git-dir &>/dev/null; then
-      local staged_files
-      staged_files=$(git -C "$PROJECT_ROOT" diff --cached --name-only 2>/dev/null || echo "")
-      if [[ -n "$staged_files" ]]; then
-        while IFS= read -r humans_path; do
-          [[ -z "$humans_path" || "$humans_path" == "*" ]] && continue
-          while IFS= read -r staged; do
-            [[ -z "$staged" ]] && continue
-            if [[ "$staged" == "$humans_path" || "$staged" == "$humans_path/"* ]]; then
-              warn "Staged file matches humans-only path: $humans_path ($staged)"
-              warn "Review clare/autonomy.yml before committing AI-generated changes to this path."
-            fi
-          done <<<"$staged_files"
-        done < <(extract_humans_only_paths "$autonomy_file")
-      fi
-    fi
   else
     warn "clare/autonomy.yml not found — run the CLARE installer to configure CLARE"
+  fi
+}
+
+autonomy_level_for_path() {
+  local requested_path="$1"
+  local autonomy_file="$PROJECT_ROOT/clare/autonomy.yml"
+  local boundary_path="" boundary_level=""
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*path:[[:space:]]*(.*) ]]; then
+      if [[ "$boundary_path" == "$requested_path" ]]; then
+        printf '%s' "$boundary_level"
+        return 0
+      fi
+      boundary_path="$(strip_yaml_scalar_quotes "$(trim_whitespace "${BASH_REMATCH[1]}")")"
+      boundary_level=""
+      continue
+    fi
+
+    if [[ -n "$boundary_path" && "$line" =~ ^[[:space:]]*level:[[:space:]]*(.*) ]]; then
+      boundary_level="$(strip_yaml_scalar_quotes "$(trim_whitespace "${BASH_REMATCH[1]}")")"
+    fi
+  done <"$autonomy_file"
+
+  if [[ "$boundary_path" == "$requested_path" ]]; then
+    printf '%s' "$boundary_level"
+  fi
+}
+
+check_humans_only_boundary() {
+  local boundary_path="$1"
+
+  if [[ "$boundary_path" == "*" ]]; then
+    pass "Humans-only boundary configured: $boundary_path"
+    return 0
+  fi
+
+  if ! command -v git &>/dev/null || ! git -C "$PROJECT_ROOT" rev-parse --git-dir &>/dev/null; then
+    pass "Humans-only boundary configured: $boundary_path"
+    return 0
+  fi
+
+  local staged_files
+  staged_files=$(git -C "$PROJECT_ROOT" diff --cached --name-only 2>/dev/null || echo "")
+  if [[ -z "$staged_files" ]]; then
+    pass "Humans-only boundary clear: $boundary_path"
+    return 0
+  fi
+
+  local staged matched=false
+  while IFS= read -r staged; do
+    [[ -z "$staged" ]] && continue
+    if [[ "$staged" == "$boundary_path" || "$staged" == "$boundary_path/"* ]]; then
+      matched=true
+      warn "Staged file matches humans-only path: $boundary_path ($staged)"
+      warn "Review clare/autonomy.yml before committing AI-generated changes to this path."
+    fi
+  done <<<"$staged_files"
+
+  if ! $matched; then
+    pass "Humans-only boundary clear: $boundary_path"
+  fi
+}
+
+check_autonomy_boundary() {
+  local boundary_path="$1"
+  check_autonomy_file
+
+  local boundary_level
+  boundary_level="$(autonomy_level_for_path "$boundary_path")"
+  if [[ -z "$boundary_level" ]]; then
+    warn "Autonomy boundary not found: $boundary_path"
+    return 0
+  fi
+
+  if [[ "$boundary_level" == "humans-only" ]]; then
+    check_humans_only_boundary "$boundary_path"
+  else
+    pass "Autonomy boundary configured: $boundary_path ($boundary_level)"
   fi
 }
 
@@ -1606,6 +1709,7 @@ source_local_checks() {
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
+  refresh_autonomy_steps
   refresh_extension_steps
 
   if $LIST_TESTS; then
