@@ -166,7 +166,7 @@ In PLAN mode you make no file edits, so do **not** run `./clare/verify-ci.sh` wh
 - `/project:verify` — Run verify-ci.sh and report results
 - `/project:check-autonomy` — Check the autonomy level for a file path
 - `/project:update-autonomy` — Guide you through updating clare/autonomy.yml
-- `/project:clare2-capture` — Start or stop a Clare₂ session capture (sets `CLARE2_SESSION_FILE`)
+- `/project:clare2-capture` — Start or stop a CLARE₂ session capture (sets `CLARE2_SESSION_FILE`)
 - `/project:distill` — Trigger an on-demand CLARE₂ distillation pass
 
 ---
