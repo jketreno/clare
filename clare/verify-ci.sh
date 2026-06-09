@@ -1668,7 +1668,7 @@ _clare2_autonomy_tier() {
   local best_match=""
   local best_len=0
   while IFS= read -r entry_path; do
-    if [[ "$rel_path" == "$entry_path"* ]] && (( ${#entry_path} > best_len )); then
+    if [[ "$rel_path" == "$entry_path"* ]] && ((${#entry_path} > best_len)); then
       best_match="$entry_path"
       best_len=${#entry_path}
     fi
@@ -1722,18 +1722,18 @@ _clare2_emit_ci_result() {
         corr_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         printf '%s\n' \
           "{\"type\":\"correction\",\"correction_type\":\"ci_self_correct\",\"check\":$(printf '%s' "$check" | jq -Rs .),\"ts\":\"$corr_ts\"}" \
-          >> "$session_file"
-      done <<< "$resolved"
+          >>"$session_file"
+      done <<<"$resolved"
     fi
   fi
 
   # Save current failures for next run
-  printf '%s\n' "${FAILED_CHECKS[@]}" | sort > "$CLARE2_LAST_FAILURES_FILE"
+  printf '%s\n' "${FAILED_CHECKS[@]}" | sort >"$CLARE2_LAST_FAILURES_FILE"
 
   # Emit the ci_result record
   printf '%s\n' \
     "{\"type\":\"ci_result\",\"exit_code\":$exit_code,\"checks\":$checks_json,\"ts\":\"$ts\"}" \
-    >> "$session_file"
+    >>"$session_file"
 
   # Emit file_tier records for changed files
   if command -v git &>/dev/null && git -C "$PROJECT_ROOT" rev-parse --git-dir &>/dev/null; then
@@ -1745,7 +1745,7 @@ _clare2_emit_ci_result() {
       tier=$(_clare2_autonomy_tier "$abs_path")
       printf '%s\n' \
         "{\"type\":\"file_tier\",\"file\":$(printf '%s' "$f" | jq -Rs .),\"tier\":\"$tier\",\"ts\":\"$ts\"}" \
-        >> "$session_file"
+        >>"$session_file"
     done < <(git -C "$PROJECT_ROOT" diff --name-only HEAD 2>/dev/null)
   fi
 }
