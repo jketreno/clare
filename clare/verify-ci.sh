@@ -9,9 +9,10 @@
 # CLARE Principle: [C] Constrained — enforced, not suggested
 #
 # Usage:
-#   ./clare/verify-ci.sh           # Run all checks
-#   ./clare/verify-ci.sh --fast    # Skip slow checks (architecture tests)
-#   ./clare/verify-ci.sh --fix     # Auto-fix linting issues where possible
+#   ./clare/verify-ci.sh            # Run all checks (stops at first failure)
+#   ./clare/verify-ci.sh --fast     # Skip slow checks (architecture tests)
+#   ./clare/verify-ci.sh --fix      # Auto-fix linting issues where possible
+#   ./clare/verify-ci.sh --fail-slow  # Continue past failures; print summary at end
 #   ./clare/verify-ci.sh --list-tests
 #   ./clare/verify-ci.sh --run-tests 1,3.1,7
 #
@@ -39,7 +40,7 @@ fi
 FAST_MODE=false
 FIX_MODE=false
 INCLUDE_UNTRACKED=true
-FAIL_FAST=false
+FAIL_FAST=true
 LIST_TESTS=false
 RUN_SELECTED_STAGES=false
 RUN_TESTS_CSV=""
@@ -120,7 +121,8 @@ Run local CI/CD checks and enforce CLARE constraints.
 Options:
   --fast        Skip slow checks (architecture tests)
   --fix         Auto-fix lint issues where supported
-  --fail-fast   Stop at the first failing check and print a concise summary
+  --fail-slow   Continue past failures and print a summary at the end
+  --fail-fast   (default) Stop at the first failing check; alias kept for compatibility
   --list-tests  List numbered verification stages and exit
   --run-tests <csv>
                Run selected stages or stage steps in order (example: --run-tests 1,3.1,7)
@@ -137,6 +139,7 @@ while [[ $# -gt 0 ]]; do
     --fast) FAST_MODE=true ;;
     --fix) FIX_MODE=true ;;
     --fail-fast) FAIL_FAST=true ;;
+    --fail-slow) FAIL_FAST=false ;;
     --list-tests) LIST_TESTS=true ;;
     --run-tests)
       shift
@@ -270,7 +273,6 @@ run_stage_step() {
   local name fn arg
   IFS='|' read -r name fn arg <<<"$step_entry"
 
-  info "Running stage ${stage_number}.${step_number}: $name"
   if [[ -n "${arg:-}" ]]; then
     "$fn" "$arg"
   else
@@ -308,7 +310,7 @@ run_check() {
   local name="$1"
   local cmd="$2"
   CHECK_COMMANDS["$name"]="$cmd"
-  info "Running: $cmd"
+  echo -e "${BLUE}  → ${name}${NC}"
 
   local out_file
   out_file="$(mktemp)"
@@ -325,7 +327,6 @@ run_check() {
       # print_failure_summary is defined later in the file; this is safe because
       # run_check is only invoked from main(), after all functions are parsed.
       echo ""
-      echo -e "${RED}Fail-fast triggered: stopping at first failure (${name}).${NC}"
       print_failure_summary
       exit 1
     fi
@@ -657,7 +658,7 @@ run_shellmetrics_check() {
 
   local cmd_string
   printf -v cmd_string '%q ' "${shellmetrics_cmd[@]}"
-  info "Running: $cmd_string 2>&1"
+  echo -e "${BLUE}  → shellmetrics complexity (Bash/Shell)${NC}"
 
   local output_file
   output_file="$(mktemp)"
@@ -1418,7 +1419,6 @@ run_extension() {
       echo "    Edit clare/extensions.yml and set enabled: false for '$name'"
       echo ""
     } >"$out_file"
-    cat "$out_file"
     FAILED_OUTPUTS["$ext_id"]="$out_file"
     CHECK_COMMANDS["$ext_id"]="Install: $install_hint"
     # Note: fail "$ext_id" above already appended to FAILED_CHECKS; do not append again.
@@ -1426,6 +1426,7 @@ run_extension() {
       print_failure_summary
       exit 1
     fi
+    cat "$out_file"
     return 1
   fi
 
@@ -1802,6 +1803,7 @@ main() {
   $HAS_RUST && info "Detected: Rust"
   $FAST_MODE && warn "Fast mode: architecture tests skipped"
   $FIX_MODE && warn "Fix mode: auto-fixing lint issues where possible"
+  $FAIL_FAST || warn "Fail-slow mode: continuing past failures"
   $RUN_SELECTED_STAGES && info "Running selected stages: $RUN_TESTS_CSV"
   if $INCLUDE_UNTRACKED; then
     info "File scanning includes untracked files (use --exclude-untracked to limit to tracked files)"

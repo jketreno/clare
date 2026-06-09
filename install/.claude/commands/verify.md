@@ -8,8 +8,8 @@ Execute the following and report results clearly:
 
 ```bash
 ./clare/verify-ci.sh 2>&1
-# Or for quick iteration, stop at the first failure and show a concise summary:
-./clare/verify-ci.sh --fail-fast 2>&1
+# Or to continue past failures and collect all results before reviewing:
+./clare/verify-ci.sh --fail-slow 2>&1
 ```
 
 After running:
