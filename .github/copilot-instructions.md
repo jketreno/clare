@@ -35,7 +35,7 @@ Fill in the bracketed values from the actual files. Show this block **once per c
 3. Non-zero → fix the reported failures, then run it once more.
 
 - Do not invoke it again for any other reason; never skip or bypass it when edits were made.
-- **Reporting:** if you ran it this turn, include verify-ci.sh result (PASS/FAIL), command used, and whether `--fast`, `--fix`, or `--fail-fast` was used (if applicable). If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it.
+- **Reporting:** if you ran it this turn, include verify-ci.sh result (PASS/FAIL), command used, and whether `--fast`, `--fix`, or `--fail-slow` was used (if applicable). If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it.
 - If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
 - Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` is the source of truth
 

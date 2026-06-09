@@ -17,7 +17,7 @@ Do not invoke it again for any other reason, and do not report implementation wo
 **Reporting:** if you ran verify-ci.sh this turn, report:
 - verify-ci.sh result: PASS/FAIL
 - command used
-- whether `--fast`, `--fix`, or `--fail-fast` was used, if applicable
+- whether `--fast`, `--fix`, or `--fail-slow` was used, if applicable
 
 If you edited no files this turn, state `no edits this turn — verify-ci.sh not run` and do not invoke it. If running in read-only mode, state: `verify-ci.sh not run because session is read-only.`
 

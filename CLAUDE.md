@@ -7,10 +7,10 @@ This project uses the **CLARE** framework for AI-assisted development.
 **When to run it:** only in a turn where you created, updated, or deleted a file. If you edited no files this turn — including any plan-mode, research, or read-only turn — do **not** run it.
 
 ```bash
-./clare/verify-ci.sh        # Full check
-./clare/verify-ci.sh --fast # Skip slow architecture tests
-./clare/verify-ci.sh --fix  # Auto-fix lint issues
-./clare/verify-ci.sh --fail-fast # Stop at the first failing check and show a concise summary
+./clare/verify-ci.sh            # Full check (stops at first failure)
+./clare/verify-ci.sh --fast     # Skip slow architecture tests
+./clare/verify-ci.sh --fix      # Auto-fix lint issues
+./clare/verify-ci.sh --fail-slow  # Continue past failures; print summary at end
 ```
 
 **How to run it (a terminating sequence, not a loop):**
@@ -21,7 +21,7 @@ This project uses the **CLARE** framework for AI-assisted development.
 
 Do not invoke it again for any other reason.
 
-**Reporting:** if you ran verify-ci.sh this turn, report the result (PASS/FAIL), the command, and any `--fast`/`--fix`/`--fail-fast` flag used. If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it. If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
+**Reporting:** if you ran verify-ci.sh this turn, report the result (PASS/FAIL), the command, and any `--fast`/`--fix`/`--fail-slow` flag used. If you edited no files this turn, state "no edits this turn — verify-ci.sh not run" and do not invoke it. If running in read-only mode (Ask mode), state: "verify-ci.sh not run because session is read-only."
 
 Rules guide behavior; CI enforces it. `./clare/verify-ci.sh` is the source of truth.
 
@@ -193,10 +193,10 @@ In PLAN mode you make no file edits, so do **not** run `./clare/verify-ci.sh` wh
 
 ```bash
 # Verification
-./clare/verify-ci.sh             # Full CI check
-./clare/verify-ci.sh --fast      # Skip architecture tests
-./clare/verify-ci.sh --fix       # Auto-fix lint
-./clare/verify-ci.sh --fail-fast # Stop at the first failing check
+./clare/verify-ci.sh              # Full CI check (stops at first failure)
+./clare/verify-ci.sh --fast       # Skip architecture tests
+./clare/verify-ci.sh --fix        # Auto-fix lint
+./clare/verify-ci.sh --fail-slow  # Continue past failures; print summary at end
 ./clare/verify-ci.sh --list-tests         # List numbered stages and steps
 ./clare/verify-ci.sh --run-tests 1,3.1,7  # Run only selected stages/steps
 
