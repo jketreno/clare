@@ -149,4 +149,12 @@ clare/principles.md           — This framework's quick reference
 clare/templates/              — Generic templates (architecture tests, skills, linting, CI)
 clare/examples/               — Domain-specific examples (architecture tests, skills)
 clare/docs/                   — CLARE documentation
+ai-vllm/clare2/              — CLARE₂ learning substrate (pipeline, train, infer containers)
 ```
+
+## CLARE₂ Commands
+
+When the CLARE₂ pipeline container is running:
+
+- `/project:clare2-capture start` — initialize session JSONL capture; wires verify-ci.sh to emit CI events
+- `/project:distill` — trigger an on-demand distillation pass (also runs nightly at 22:00 UTC)

@@ -1629,6 +1629,127 @@ source_local_checks() {
   fi
 }
 
+# ─── CLARE₂ Session Signal Emission ──────────────────────────────────────────
+#
+# These functions emit structured JSONL records to CLARE2_SESSION_FILE when that
+# variable is set. Zero-cost when unset — all writes go to /dev/null.
+#
+# Three signal types (per CLARE₂.md §1.7):
+#   ci_result   — structured pass/fail for every check run
+#   correction  — auto-emitted when a previously failing check now passes
+#   file_tier   — autonomy tier for each file changed in this session
+
+# Temp file tracking which checks failed on the *previous* run (for correction detection)
+CLARE2_LAST_FAILURES_FILE="${TMPDIR:-/tmp}/.clare1_last_failures_$$"
+
+# Resolve the autonomy tier for a given file path by reading autonomy.yml.
+# Requires yq v4; silently returns "unknown" if yq is unavailable.
+_clare2_autonomy_tier() {
+  local file_path="$1"
+  local autonomy_yml="${SCRIPT_DIR}/autonomy.yml"
+
+  if ! command -v yq &>/dev/null || [[ ! -f "$autonomy_yml" ]]; then
+    echo "unknown"
+    return
+  fi
+
+  local rel_path
+  rel_path=$(realpath --relative-to="$PROJECT_ROOT" "$file_path" 2>/dev/null || echo "$file_path")
+
+  # Walk module entries from most-specific to least-specific match
+  local tier
+  tier=$(yq e '.modules[] | select(.path == "'"$rel_path"'") | .level' "$autonomy_yml" 2>/dev/null | head -1)
+  if [[ -n "$tier" && "$tier" != "null" ]]; then
+    echo "$tier"
+    return
+  fi
+
+  # Try prefix match (directory-level): find entries whose path is a prefix
+  local best_match=""
+  local best_len=0
+  while IFS= read -r entry_path; do
+    if [[ "$rel_path" == "$entry_path"* ]] && (( ${#entry_path} > best_len )); then
+      best_match="$entry_path"
+      best_len=${#entry_path}
+    fi
+  done < <(yq e '.modules[].path' "$autonomy_yml" 2>/dev/null)
+
+  if [[ -n "$best_match" ]]; then
+    yq e '.modules[] | select(.path == "'"$best_match"'") | .level' "$autonomy_yml" 2>/dev/null | head -1
+  else
+    echo "unknown"
+  fi
+}
+
+# Emit a ci_result record and handle correction detection.
+# Called at the end of main() with the final exit code.
+_clare2_emit_ci_result() {
+  local exit_code="$1"
+  local session_file="${CLARE2_SESSION_FILE:-}"
+  [[ -z "$session_file" ]] && return 0
+
+  local ts
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  # Build the checks array: one entry per check, pass or fail
+  local checks_json="["
+  local first=true
+  for check in "${!CHECK_COMMANDS[@]}"; do
+    local status="pass"
+    for failed in "${FAILED_CHECKS[@]}"; do
+      [[ "$failed" == "$check" ]] && status="fail" && break
+    done
+    $first || checks_json+=","
+    first=false
+    checks_json+="{\"name\":$(printf '%s' "$check" | jq -Rs .),\"status\":\"$status\",\"cmd\":$(printf '%s' "${CHECK_COMMANDS[$check]}" | jq -Rs .)}"
+  done
+  checks_json+="]"
+
+  local current_failures_list
+  current_failures_list=$(printf '%s\n' "${FAILED_CHECKS[@]}" | sort)
+
+  # Correction detection: compare to previous run's failures
+  if [[ -f "$CLARE2_LAST_FAILURES_FILE" ]]; then
+    local resolved
+    resolved=$(comm -23 \
+      <(cat "$CLARE2_LAST_FAILURES_FILE" | sort) \
+      <(printf '%s\n' "${FAILED_CHECKS[@]}" | sort) \
+      2>/dev/null || true)
+    if [[ -n "$resolved" ]]; then
+      while IFS= read -r check; do
+        [[ -z "$check" ]] && continue
+        local corr_ts
+        corr_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        printf '%s\n' \
+          "{\"type\":\"correction\",\"correction_type\":\"ci_self_correct\",\"check\":$(printf '%s' "$check" | jq -Rs .),\"ts\":\"$corr_ts\"}" \
+          >> "$session_file"
+      done <<< "$resolved"
+    fi
+  fi
+
+  # Save current failures for next run
+  printf '%s\n' "${FAILED_CHECKS[@]}" | sort > "$CLARE2_LAST_FAILURES_FILE"
+
+  # Emit the ci_result record
+  printf '%s\n' \
+    "{\"type\":\"ci_result\",\"exit_code\":$exit_code,\"checks\":$checks_json,\"ts\":\"$ts\"}" \
+    >> "$session_file"
+
+  # Emit file_tier records for changed files
+  if command -v git &>/dev/null && git -C "$PROJECT_ROOT" rev-parse --git-dir &>/dev/null; then
+    local changed_files
+    while IFS= read -r f; do
+      [[ -z "$f" ]] && continue
+      local abs_path="${PROJECT_ROOT}/${f}"
+      local tier
+      tier=$(_clare2_autonomy_tier "$abs_path")
+      printf '%s\n' \
+        "{\"type\":\"file_tier\",\"file\":$(printf '%s' "$f" | jq -Rs .),\"tier\":\"$tier\",\"ts\":\"$ts\"}" \
+        >> "$session_file"
+    done < <(git -C "$PROJECT_ROOT" diff --name-only HEAD 2>/dev/null)
+  fi
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
@@ -1685,6 +1806,7 @@ main() {
     echo -e "${GREEN}✅ All checks passed — work is complete.${NC}"
     echo -e "${GREEN}   No further terminal input is required; you can proceed to commit.${NC}"
     echo ""
+    _clare2_emit_ci_result 0
     exit 0
   else
     echo -e "${RED}❌ ${#FAILED_CHECKS[@]} check(s) failed:${NC}"
@@ -1696,6 +1818,7 @@ main() {
     print_failure_summary
     echo -e "${RED}   Fix the issues above and run this script again.${NC}"
     echo -e "${RED}   Work is NOT complete until all checks pass.${NC}"
+    _clare2_emit_ci_result 1
     exit 1
   fi
 }

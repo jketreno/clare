@@ -74,3 +74,10 @@ Fix what the linters and `clare/verify-ci.sh` flag — never circumvent it. When
 - `clare/verify-ci.sh` — required verification gate before completion
 - `clare/verify-local.sh` — project-specific checks
 - `clare/templates/skills/` — reference skill templates
+
+## CLARE₂ Commands
+
+When the CLARE₂ pipeline container is running:
+
+- `/project:clare2-capture start` — initialize session JSONL capture; wires verify-ci.sh to emit CI events
+- `/project:distill` — trigger an on-demand distillation pass (also runs nightly at 22:00 UTC)
