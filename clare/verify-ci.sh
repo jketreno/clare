@@ -927,10 +927,12 @@ run_python_lint_checks() {
 }
 
 run_go_lint_checks() {
-  run_check "Go vet" "cd '$PROJECT_ROOT' && go vet ./... 2>&1" || true
-  if command -v golint &>/dev/null; then
-    run_check "Golint" "cd '$PROJECT_ROOT' && golint ./... 2>&1" || true
-  fi
+  for dir in "${GO_MOD_DIRS[@]}"; do
+    run_check "Go vet" "cd '$dir' && go vet ./... 2>&1" || true
+    if command -v golint &>/dev/null; then
+      run_check "Golint" "cd '$dir' && golint ./... 2>&1" || true
+    fi
+  done
 }
 
 # ─── Project Type Detection ───────────────────────────────────────────────────
@@ -941,6 +943,7 @@ detect_project() {
   HAS_PYTHON=false
   PYTHON_CMD=""
   HAS_GO=false
+  GO_MOD_DIRS=()
   HAS_RUST=false
   HAS_MAKE=false
 
@@ -954,7 +957,18 @@ detect_project() {
   elif command -v python >/dev/null 2>&1; then
     PYTHON_CMD="python"
   fi
-  [[ -f "$PROJECT_ROOT/go.mod" ]] && HAS_GO=true || true
+  # Collect every go.mod in the tree (git-aware; falls back to find).
+  local go_mod_files=()
+  if command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    mapfile -t go_mod_files < <(git -C "$PROJECT_ROOT" ls-files -- '*/go.mod' 'go.mod' 2>/dev/null)
+  else
+    mapfile -t go_mod_files < <(find "$PROJECT_ROOT" -name "go.mod" ! -path "*/.git/*" | sed "s#^$PROJECT_ROOT/##")
+  fi
+  for rel in "${go_mod_files[@]}"; do
+    [[ -n "$rel" ]] || continue
+    GO_MOD_DIRS+=("$PROJECT_ROOT/$(dirname "$rel")")
+    HAS_GO=true
+  done
   [[ -f "$PROJECT_ROOT/Cargo.toml" ]] && HAS_RUST=true || true
   [[ -f "$PROJECT_ROOT/Makefile" ]] && HAS_MAKE=true || true
 }
@@ -989,7 +1003,9 @@ check_build_python() {
 
 check_build_go() {
   if $HAS_GO; then
-    run_check "Go build" "cd '$PROJECT_ROOT' && go build ./... 2>&1" || true
+    for dir in "${GO_MOD_DIRS[@]}"; do
+      run_check "Go build" "cd '$dir' && go build ./... 2>&1" || true
+    done
   fi
 }
 
@@ -1065,7 +1081,9 @@ check_tests_python() {
 
 check_tests_go() {
   if $HAS_GO; then
-    run_check "Go test" "cd '$PROJECT_ROOT' && go test ./... 2>&1" || true
+    for dir in "${GO_MOD_DIRS[@]}"; do
+      run_check "Go test" "cd '$dir' && go test ./... 2>&1" || true
+    done
   fi
 }
 
