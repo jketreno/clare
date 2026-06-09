@@ -25,6 +25,12 @@ Check `clare/autonomy.yml` for the file path:
 - [R] Reality-Aligned: one source of truth per domain concept
 - [E] Ephemeral: regenerate generated code, never patch it
 
+## CLARE₂ Commands
+
+When the CLARE₂ pipeline container is running:
+- `/project:clare2-capture start` — begin session JSONL capture
+- `/project:distill` — trigger on-demand distillation pass
+
 ## Full Rules
 See `.cursor/rules/` for detailed MDC rule files.
 See `clare/principles.md` for the principle reference card.
