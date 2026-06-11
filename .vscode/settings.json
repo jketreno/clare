@@ -19,11 +19,5 @@
   },
   "[yaml]": {
     "editor.defaultFormatter": "redhat.vscode-yaml"
-  },
-  "extensions.ignoreRecommendations": true,
-  "workbench.iconTheme": "vs-seti",
-  "workbench.panel.showLabels": true,
-  "workbench.secondarySideBar.showLabels": true,
-  "workbench.activityBar.compact": false,
-  "accessibility.chat.showCheckmarks": true
+  }
 }
