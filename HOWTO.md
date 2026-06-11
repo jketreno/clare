@@ -52,7 +52,7 @@ starting services.
 The model cache is a host bind mount shared by vLLM and the trainer:
 
 ```text
-$CLARE2_ROOT/models/huggingface -> /root/.cache/huggingface
+$CLARE2_ROOT/models/huggingface -> /root/.cache/huggingface/hub
 ```
 
 Override it with `CLARE2_MODEL_CACHE=/absolute/path`. The script writes the
@@ -68,11 +68,39 @@ absolute path to `.env`. `vllm-engine` still has no host-published port.
 - `models/adapters/registry.json`: adapter source of truth
 
 ## 3. Connect Agents
-Register the streamable HTTP MCP server:
+Confirm the MCP container is running:
 
-```text
-http://127.0.0.1:8002/mcp
+```bash
+docker compose -f "$CLARE2_ROOT/docker-compose.yml" ps clare2-mcp
+curl -i http://127.0.0.1:8002/mcp/
 ```
+
+The container status should be `Up`. If it is absent, rerun setup or start the
+core services with `docker compose -f "$CLARE2_ROOT/docker-compose.yml" up -d`.
+An HTTP response, including `406 Not Acceptable`, confirms the endpoint is
+reachable; MCP clients perform the required protocol negotiation.
+
+Register the streamable HTTP endpoint with Codex:
+
+```bash
+export CLARE2_MCP_TOKEN=$(<"$CLARE2_ROOT/secrets/clare2_mcp_token")
+codex mcp add clare-temper \
+  --url http://127.0.0.1:8002/mcp/ \
+  --bearer-token-env-var CLARE2_MCP_TOKEN
+codex mcp get clare-temper
+```
+
+Restart an existing Codex session after registration. For another MCP client,
+create a streamable HTTP server entry named `clare-temper` with URL
+`http://127.0.0.1:8002/mcp/` and use the contents of
+`secrets/clare2_mcp_token` as its bearer token.
+
+For access from another machine, rerun setup with
+`CLARE2_BIND_ADDRESS=0.0.0.0`. Then use
+`http://ai.ketrenos.com:8002/mcp/` for MCP and
+`http://ai.ketrenos.com:8000/v1` for OpenAI-compatible inference. Restrict
+ports `8000` and `8002` to trusted client networks with the host firewall; use
+TLS termination before exposing them to the public internet.
 
 Tools:
 
@@ -82,16 +110,33 @@ Tools:
 
 Obtain one route per agent session and send it on inference requests:
 
+### Path-based routing (recommended for clients that cannot set custom headers)
+
 ```bash
+CLARE_ROUTE_ID="N0iFnwmKeA95ds05QvDdSjibkX-fDVfGkj0kn1qHAWY"
 PROXY_TOKEN=$(<"$CLARE2_ROOT/secrets/clare2_proxy_token")
-curl http://127.0.0.1:8000/v1/chat/completions \
-  -H "Authorization: Bearer $PROXY_TOKEN" \
-  -H "X-CLARE-Route-ID: <route-id>" \
+curl http://127.0.0.1:8000/${CLARE_ROUTE_ID}/v1/chat/completions \
+  -H "Authorization: Bearer ${PROXY_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"model":"ignored","messages":[{"role":"user","content":"Review this."}]}'
 ```
 
-The proxy overwrites `model`; no route means the base model.
+### Header-based routing (canonical CLARE pattern)
+
+```bash
+CLARE_ROUTE_ID="N0iFnwmKeA95ds05QvDdSjibkX-fDVfGkj0kn1qHAWY"
+PROXY_TOKEN=$(<"$CLARE2_ROOT/secrets/clare2_proxy_token")
+curl http://127.0.0.1:8000/v1/chat/completions \
+  -H "Authorization: Bearer ${PROXY_TOKEN}" \
+  -H "X-CLARE-Route-ID: ${CLARE_ROUTE_ID}" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"ignored","messages":[{"role":"user","content":"Review this."}]}'
+```
+
+**Notes:**
+- Path-based routing takes precedence over header-based routing if both are present.
+- The proxy overwrites `model`; no route means the base model.
+- Header-based routing is preferred for debugging and observability (route ID appears explicitly in logs).
 
 ## 4. Generate Raw Session Corpus
 

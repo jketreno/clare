@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/jketreno/docker/ai-vllm/clare2/scripts/clare2-capture-hook.sh UserPromptSubmit",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/jketreno/docker/ai-vllm/clare2/scripts/clare2-capture-hook.sh Stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
