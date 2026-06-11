@@ -7,16 +7,20 @@ Can be run any time; the nightly cron also runs at 22:00 UTC automatically.
 ## Instructions
 
 ```bash
-PIPELINE_URL="${CLARE2_PIPELINE_URL:-http://localhost:8090}"
+AI_VLLM_ROOT="${CLARE2_ROOT:-../ai-vllm}"
+PIPELINE_URL="${CLARE2_PIPELINE_URL:-http://127.0.0.1:8000}"
+TOKEN_FILE="${CLARE2_OPERATOR_TOKEN_FILE:-${AI_VLLM_ROOT}/secrets/clare2_operator_token}"
+TOKEN=$(<"${TOKEN_FILE}")
 
 # Trigger the distillation pass
 RESPONSE=$(curl -sf -X POST "${PIPELINE_URL}/distill/trigger" \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" 2>&1)
 
 if [[ $? -ne 0 ]]; then
   echo "❌ Could not reach the CLARE₂ pipeline at ${PIPELINE_URL}"
   echo "   Is the pipeline container running?"
-  echo "   Start it with: docker compose -f ai-vllm/docker-compose.yml up -d clare2-pipeline"
+  echo "   Start it with: docker compose -f ${AI_VLLM_ROOT}/docker-compose.yml up -d clare2-policy"
   exit 1
 fi
 
@@ -26,7 +30,8 @@ echo ""
 
 # Poll for status
 sleep 5
-STATUS=$(curl -sf "${PIPELINE_URL}/distill/status" 2>/dev/null || echo '{}')
+STATUS=$(curl -sf "${PIPELINE_URL}/distill/status" \
+  -H "Authorization: Bearer ${TOKEN}" 2>/dev/null || echo '{}')
 echo "Corpus stats:"
 echo "$STATUS" | python3 -m json.tool 2>/dev/null || echo "$STATUS"
 ```

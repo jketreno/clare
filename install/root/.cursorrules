@@ -35,3 +35,9 @@ When the CLARE₂ pipeline container is running:
 See `.cursor/rules/` for detailed MDC rule files.
 See `clare/principles.md` for the principle reference card.
 See `CLAUDE.md` for the complete workflow specification.
+
+## CLARE₂ Temper Routing
+
+Use `clare_temper_route(project, task_kind, capabilities)` for an opaque route
+ID and send `X-CLARE-Route-ID` to the policy proxy. Never select/load adapters,
+provide adapter paths, call raw vLLM management endpoints, or access Docker.

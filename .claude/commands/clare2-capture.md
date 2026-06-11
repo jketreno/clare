@@ -21,7 +21,8 @@ Parse the argument passed as `$ARGUMENTS`:
 Run the session initializer and activate capture:
 
 ```bash
-eval "$(./ai-vllm/clare2/scripts/clare2-session-start.sh)"
+AI_VLLM_ROOT="${CLARE2_ROOT:-../ai-vllm}"
+eval "$("${AI_VLLM_ROOT}/clare2/scripts/clare2-session-start.sh")"
 echo "CLARE₂ session capture started."
 echo "Session file: $CLARE2_SESSION_FILE"
 echo "Session ID:   $CLARE2_SESSION_ID"

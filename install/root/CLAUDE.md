@@ -208,3 +208,9 @@ grep -A3 "level: humans-only" clare/autonomy.yml  # List restricted paths
 npm run test:architecture          # Node.js projects
 pytest tests/architecture/         # Python projects
 ```
+
+## CLARE₂ Temper Routing
+
+Use `clare_temper_route(project, task_kind, capabilities)` for an opaque route
+ID and send `X-CLARE-Route-ID` to the policy proxy. Never select/load adapters,
+provide adapter paths, call raw vLLM management endpoints, or access Docker.

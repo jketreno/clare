@@ -138,6 +138,17 @@ Even if a sub-agent skips `verify-ci.sh`, the GitHub Actions workflow in `clare/
 
 ## MCP Integration
 
+### CLARE₂ Temper routing
+
+When CLARE₂ is available, agents call
+`clare_temper_route(project, task_kind, capabilities)` for an opaque,
+session-pinned route ID. `clare_temper_status` reports its immutable adapter,
+and `clare_temper_list` is diagnostic inventory only. Send the route as
+`X-CLARE-Route-ID` to the authenticated policy proxy.
+
+Agents never select/load adapters, provide adapter paths, access Docker, or
+call raw vLLM management endpoints. No route means the base model.
+
 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) is the emerging standard for giving AI agents structured, typed access to tools and data sources. Exposing CLARE as MCP tools makes enforcement available to any MCP-compatible agent or orchestrator without requiring bash execution or file reading.
 
 ### Why MCP for CLARE?

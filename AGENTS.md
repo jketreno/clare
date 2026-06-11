@@ -81,3 +81,9 @@ When the CLARE₂ pipeline container is running:
 
 - `/project:clare2-capture start` — initialize session JSONL capture; wires verify-ci.sh to emit CI events
 - `/project:distill` — trigger an on-demand distillation pass (also runs nightly at 22:00 UTC)
+
+## CLARE₂ Temper Routing
+
+Use `clare_temper_route(project, task_kind, capabilities)` for an opaque route
+ID and send `X-CLARE-Route-ID` to the policy proxy. Never select/load adapters,
+provide adapter paths, call raw vLLM management endpoints, or access Docker.

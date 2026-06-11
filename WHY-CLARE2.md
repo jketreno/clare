@@ -1,5 +1,11 @@
 # The Tempered Model: How CLARE₂ Makes On-Prem AI Remember Who You Are
 
+> **Architecture note:** This essay explains the Temper concept. The current
+> production design uses immutable adapters selected by an authenticated policy
+> proxy and registry, not mutable `current` symlinks or a separate public
+> `clare2-infer` service. See [CLARE2.md](CLARE2.md) and
+> [README-CLARE2.md](README-CLARE2.md) for the normative architecture.
+
 > *A smaller model that knows you is more useful than a larger model that has to be reminded every morning.*
 
 ---
