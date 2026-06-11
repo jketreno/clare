@@ -43,7 +43,6 @@ Thumbs.db
 .idea/
 
 # AI tool local settings (machine-specific permissions, paths)
-.claude/settings.json
 .claude/settings.local.json
 .cursor/settings.json
 

@@ -17,10 +17,11 @@ export CLARE2_ROOT=/path/to/ai-vllm
 - Docker Compose and NVIDIA Container Toolkit
 - A supported NVIDIA GPU with enough memory for Qwen3.5
 - Hugging Face access to serving and training checkpoints
-- Python 3 and `jq` on developer workstations
+- `openssl`, `curl`, `jq`, and `flock`
 - Local Qwen3.5 serving through the included vLLM container
 
 Runtime endpoints:
+- `127.0.0.1:5000`: MLflow training runs and adapter artifacts
 - `127.0.0.1:8000`: policy proxy and operator API
 - `127.0.0.1:8002`: Temper MCP tools
 - private `vllm-engine`: base model and runtime LoRA management
@@ -28,99 +29,40 @@ Runtime endpoints:
 - `models/adapters/registry.json`: adapter source of truth
 Distillation and summarization use the same local Qwen3.5 vLLM service.
 
-## 2. Configure Models
-```bash
-cd "$CLARE2_ROOT"
-cp .env.example .env
-python3 -m venv .venv-config
-.venv-config/bin/pip install huggingface_hub transformers
-.venv-config/bin/python - <<'PY'
-from huggingface_hub import HfApi
-api = HfApi()
-for model in ("Qwen/Qwen3.5-35B-A3B-FP8", "Qwen/Qwen3.5-35B-A3B"):
-    print(model, api.model_info(model).sha)
-PY
-```
+## 2. Run Automated Setup
+The setup script performs host configuration in Docker:
 
-Put the returned pins in `.env`:
-
-```dotenv
-CLARE2_INFERENCE_MODEL=Qwen/Qwen3.5-35B-A3B-FP8
-CLARE2_INFERENCE_REVISION=<FP8 commit SHA>
-CLARE2_TRAIN_MODEL=Qwen/Qwen3.5-35B-A3B
-CLARE2_TRAIN_REVISION=<non-FP8 commit SHA>
-```
-
-Confirm both commits represent the same upstream model release. Their SHAs can
-differ because they are separate Hugging Face repositories.
-
-Generate the training-model fingerprints:
-
-```bash
-set -a; source .env; set +a
-.venv-config/bin/python - <<'PY'
-import hashlib, json, os
-from transformers import AutoConfig, AutoTokenizer
-model = os.environ["CLARE2_TRAIN_MODEL"]
-revision = os.environ["CLARE2_TRAIN_REVISION"]
-config = AutoConfig.from_pretrained(model, revision=revision, trust_remote_code=True)
-tokenizer = AutoTokenizer.from_pretrained(model, revision=revision, trust_remote_code=True)
-digest = lambda value: hashlib.sha256(value.encode()).hexdigest()
-print("CLARE2_BASE_CONFIG_HASH=" + digest(config.to_json_string()))
-print("CLARE2_TOKENIZER_HASH=" + digest(
-    json.dumps(tokenizer.init_kwargs, sort_keys=True, default=str)))
-PY
-```
-
-Copy the output into `.env`, then define canonical projects:
-
-```dotenv
-CLARE2_PROJECT_MAP={"clare":"github:jketreno/clare","service":"github:org/service"}
-CLARE2_PROJECT_ID=github:jketreno/clare
-```
-
-Agents pass the map key to `clare_temper_route`; adapters store the canonical
-value as their project scope.
-
-## 3. Configure Secrets
-```bash
-cd "$CLARE2_ROOT"
-mkdir -p secrets
-umask 077
-printf '%s' '<Hugging Face token>' > secrets/huggingface_token
-printf '%s' '<LDAP password or unused placeholder>' > secrets/ldap_app_password
-openssl rand -hex 32 > secrets/clare2_proxy_token
-openssl rand -hex 32 > secrets/clare2_operator_token
-openssl rand -hex 32 > secrets/clare2_callback_secret
-chmod 600 secrets/*
-```
-
-Use separate CLARE₂ token values. Rotate credentials previously shared in
-plaintext. Distillation uses the local base model:
-
-```dotenv
-CLARE2_DISTILL_MODEL=Qwen/Qwen3.5-35B-A3B-FP8
-```
-
-## 4. Build and Start
-The lifecycle can only start/stop pre-existing containers through its restricted
-Docker proxy. Build and create the trainer before normal startup:
+- creates `.env` and local secrets
+- resolves immutable model revisions
+- downloads both Qwen snapshots into `models/huggingface/`
+- computes the training config and tokenizer fingerprints
+- builds CLARE₂ images and creates the one-shot trainer
+- starts a private MLflow tracking server with local persistent storage
+- starts the core stack and validates its health
+- installs project-local Codex capture hooks
 
 ```bash
 cd "$CLARE2_ROOT"
-docker compose --profile training build
-docker compose --profile training create clare2-train
-docker compose up -d
-docker compose ps
-curl -s http://127.0.0.1:8000/health | jq
-TOKEN=$(<secrets/clare2_operator_token)
-curl -s -H "Authorization: Bearer $TOKEN" \
-  http://127.0.0.1:8000/operator/status | jq
+HF_TOKEN='<Hugging Face token>' \
+CLARE2_PROJECT_MAP='{"clare":"github:jketreno/clare"}' \
+CLARE2_PROJECT_ID='github:jketreno/clare' \
+./setup-clare2.sh --capture-project "$CLARE_ROOT"
 ```
 
-`vllm-engine` must have no host-published port.
+Without `HF_TOKEN`, an interactive terminal prompts for it. Existing secrets
+and downloaded snapshots are reused. Use `--no-start` to prepare without
+starting services.
 
-## 5. Connect Agents
+The model cache is a host bind mount shared by vLLM and the trainer:
+
+```text
+./models/huggingface -> /root/.cache/huggingface
+```
+
+Override it with `CLARE2_MODEL_CACHE=/absolute/path`. The script writes the
+absolute path to `.env`. `vllm-engine` still has no host-published port.
+
+## 3. Connect Agents
 Register the streamable HTTP MCP server:
 
 ```text
@@ -146,9 +88,38 @@ curl http://127.0.0.1:8000/v1/chat/completions \
 
 The proxy overwrites `model`; no route means the base model.
 
-## 6. Generate Raw Session Corpus
+## 4. Generate Raw Session Corpus
 
-### A. CLARE verification events
+### A. Launch an agent with capture enabled
+
+There is no cross-agent standard log location. Codex currently stores private
+session transcripts under `$CODEX_HOME/sessions` (normally
+`~/.codex/sessions`), but that transcript format is explicitly not a stable
+hook interface. Do not scrape it. Use the documented
+[Codex lifecycle hooks](https://developers.openai.com/codex/hooks) instead.
+
+The supported CLARE₂ ingestion location is:
+
+```text
+$CLARE2_ROOT/corpus/sessions/YYYY/MM/DD/<session-id>.jsonl
+```
+
+The setup command's `--capture-project` option installs
+`<project>/.codex/hooks.json`. Those hooks normalize `UserPromptSubmit` and
+`Stop` events into `interaction` records. Launch Codex through the wrapper so
+the hooks and child commands share one `CLARE2_SESSION_FILE`:
+
+```bash
+cd "$CLARE2_ROOT"
+./clare2/scripts/clare2-agent.sh codex "$CLARE_ROOT"
+```
+
+In Codex, run `/hooks` once after installation or changes and trust the
+project-local hook definitions. Capture starts on the next wrapped session.
+The resulting JSONL contains user prompts and final assistant messages, so
+treat `corpus/` as sensitive data and keep secrets out of prompts.
+
+### B. CLARE verification events
 ```bash
 cd "$CLARE_ROOT"
 export CORPUS_ROOT="$CLARE2_ROOT/corpus"
@@ -157,29 +128,20 @@ eval "$("$CLARE2_ROOT/clare2/scripts/clare2-session-start.sh")"
 ```
 
 This records `session_meta`, `ci_result`, `correction`, and `file_tier` objects
-under `corpus/sessions/YYYY/MM/DD/<uuid>.jsonl`. The supplied capture command
-supports `start`, `status`, and `stop`.
+under `corpus/sessions/YYYY/MM/DD/<uuid>.jsonl`.
 
-### B. Agent hooks or wrappers
-Have start/stop or tool hooks append normalized JSONL to
-`$CLARE2_SESSION_FILE`. Useful records include:
+When launched through `clare2-agent.sh`, commands run by the agent inherit the
+same variable, so `verify-ci.sh` appends to the same session automatically.
+The manual `eval` flow above is only needed for shells not started by the
+wrapper.
 
-```json
-{"type":"interaction","ts":"...","request":"Add validation","outcome":"implemented"}
-{"type":"correction","ts":"...","problem":"Used mutable state","preferred":"Use immutable updates"}
-{"type":"decision","ts":"...","category":"architecture","decision":"Use service layer"}
-```
+### C. Other agents and external event import
+For an agent with lifecycle hooks, configure its user-prompt and completed-turn
+events to append compact JSON objects to `$CLARE2_SESSION_FILE`, and launch it
+through `clare2-agent.sh`. For non-interactive agents that emit JSONL, wrap the
+command and transform its stream into `interaction`, `correction`, or
+`decision` records. Do not depend on undocumented agent cache directories.
 
-Example correction hook:
-
-```bash
-jq -cn --arg ts "$(date -u +%FT%TZ)" \
-  --arg problem "$PROBLEM" --arg preferred "$PREFERRED" \
-  '{type:"correction",ts:$ts,problem:$problem,preferred:$preferred}' \
-  >> "$CLARE2_SESSION_FILE"
-```
-
-### C. External event import
 CI, review bots, and ticket systems can write JSONL into the dated session
 directory. Each line must be one object with `type`, UTC `ts`, project context,
 and a concise behavioral signal. Never capture credentials, sensitive prompts,
@@ -192,7 +154,7 @@ find "$CLARE2_ROOT/corpus/sessions" -name '*.jsonl' -print0 |
   xargs -0 -n1 sh -c 'jq -e . "$0" >/dev/null'
 ```
 
-## 7. Distill Sessions into Episodes
+## 5. Distill Sessions into Episodes
 Distillation runs daily at `22:00 UTC`. Trigger today's pass:
 
 ```bash
@@ -216,7 +178,7 @@ Categories are `style`, `architecture`, `antipattern`, and `domain`. Evidence
 count 2 is required; corrections are high-signal. Processed session IDs are
 stored in `corpus/meta/session_index.json`, preventing duplicate reruns.
 
-## 8. Summarize the Corpus
+## 6. Summarize the Corpus
 The `22:30 UTC` schedule performs:
 
 - Sunday: seven daily episode files to a weekly summary
@@ -237,7 +199,7 @@ Replace `weekly` with `monthly`, `quarterly`, or `scheduled`. Output is under
 `corpus/summaries/`. Quarterly processing promotes durable patterns into
 `corpus/themes/active/` and archives replaced themes.
 
-## 9. Assemble Training Data
+## 7. Assemble Training Data
 Assembly runs at `23:30 UTC`, combining active themes with seven recent days:
 
 ```bash
@@ -251,7 +213,7 @@ head -1 "$CLARE2_ROOT/corpus/training/current.jsonl" | jq
 
 Do not train with an empty `current.jsonl`.
 
-## 10. Train, Evaluate, and Promote
+## 8. Train, Evaluate, and Promote
 The nightly lifecycle drains inference at `23:45 UTC` and trains at `00:00 UTC`.
 Start the same flow manually:
 
@@ -263,6 +225,11 @@ docker compose exec clare2-policy python -c \
   'from app.lifecycle import start_training; start_training()'
 docker compose logs -f clare2-policy clare2-train vllm-engine
 ```
+
+Open `http://127.0.0.1:5000` to inspect the `clare2-qlora` experiment. MLflow
+stores SQLite metadata under `$CLARE2_ROOT/mlflow/data/` and artifacts under
+`$CLARE2_ROOT/mlflow/artifacts/`. It records hashes and training metadata but
+does not upload the raw corpus.
 
 Check state or roll back:
 
@@ -276,7 +243,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 Promotion requires load/smoke success, all mandatory probes, at least 90% pass
 rate, and no category regression.
 
-## 11. Verify and Troubleshoot
+## 9. Verify and Troubleshoot
 
 ```bash
 cd "$CLARE2_ROOT"
@@ -286,7 +253,7 @@ curl -s http://127.0.0.1:9091/metrics | grep '^clare2_'
 ```
 
 - No sessions: check `CLARE2_SESSION_FILE` and the UTC directory date.
-- No episodes: inspect policy logs and distillation credentials/model.
+- No episodes: inspect policy and local vLLM logs.
 - No summaries: verify lower-level files for the reference date.
 - Empty training corpus: inspect active themes and seven recent episode files.
 - Registry mismatch: recompute hashes before first registry creation.

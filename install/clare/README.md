@@ -66,6 +66,10 @@ The installer supports non-interactive skill installation using `--install-skill
 ./scripts/clare-installer.sh --target /path/to/project --install-skill "all"
 ```
 
+The `clare2-corpus-capture` skill additionally installs normalized capture
+scripts and project hooks for Codex, Claude Code, and GitHub Copilot. Set
+`CLARE2_CORPUS_ROOT` or `CLARE2_ROOT` before starting those agents.
+
 Notes
 - The Dockerfile installs Go by default; pass `--build-arg GO_VERSION=` to skip it,
   and add other runtimes (e.g. Rust) if you need them for `verify-ci.sh` checks.

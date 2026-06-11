@@ -273,6 +273,34 @@ run_env_scan_smoke_check() {
   rm -f "$output_file"
 }
 
+run_corpus_capture_smoke_check() {
+  section "CLARE2 Corpus Capture"
+
+  local test_script="$PROJECT_ROOT/clare/tests/test_corpus_capture.sh"
+  if [[ ! -f "$test_script" ]]; then
+    info "No corpus capture smoke test found; skipping"
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    fail "CLARE2 corpus capture smoke test (jq not installed)"
+    return 1
+  fi
+
+  local output_file
+  if ! output_file="$(mktemp)"; then
+    fail "CLARE2 corpus capture smoke test (failed to create output file)"
+    return 1
+  fi
+  if bash "$test_script" >"$output_file" 2>&1; then
+    pass "CLARE2 corpus capture smoke test"
+  else
+    fail "CLARE2 corpus capture smoke test"
+    cat "$output_file"
+  fi
+  rm -f "$output_file"
+}
+
 run_agent_environment_parity_check() {
   section "Agent Environment Parity"
 
@@ -364,3 +392,5 @@ fi
 run_agent_environment_parity_check
 
 run_env_scan_smoke_check
+
+run_corpus_capture_smoke_check

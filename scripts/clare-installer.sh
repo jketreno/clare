@@ -43,11 +43,14 @@ readonly CLARE_RELATED_PATHS=(
   "clare"
   ".github/copilot-instructions.md"
   ".github/instructions"
+  ".github/hooks"
   ".github/prompts"
   ".cursor/rules"
   ".claude/commands"
   ".vscode/prompts"
   ".codex/skills"
+  ".codex/hooks.json"
+  ".claude/settings.json"
   "CLAUDE.md"
   "AGENTS.md"
   ".cursorrules"
@@ -1039,6 +1042,33 @@ install_skill_item() {
       success "Installed: clare/scripts/clare-env-scan.sh"
     else
       warn "clare-env-setup skill installed but $env_scan_src not found; env-scan script not copied"
+    fi
+  fi
+
+  if [[ "$name" == "clare2-corpus-capture" ]]; then
+    local source_root="${src_file%/install/clare/templates/skills/*}"
+    local scripts_root="$source_root/install/clare/templates/scripts"
+    local capture_script="$scripts_root/clare2-capture-event.sh"
+    local hook_installer="$scripts_root/clare2-install-hooks.sh"
+    if [[ -f "$capture_script" && -f "$hook_installer" ]]; then
+      mkdir -p "$setup_target/clare/scripts"
+      cp "$capture_script" "$setup_target/clare/scripts/clare2-capture-event.sh"
+      cp "$hook_installer" "$setup_target/clare/scripts/clare2-install-hooks.sh"
+      chmod +x \
+        "$setup_target/clare/scripts/clare2-capture-event.sh" \
+        "$setup_target/clare/scripts/clare2-install-hooks.sh"
+      success "Installed: clare/scripts/clare2-capture-event.sh"
+      success "Installed: clare/scripts/clare2-install-hooks.sh"
+      if (
+        cd "$setup_target"
+        ./clare/scripts/clare2-install-hooks.sh
+      ); then
+        success "Installed CLARE2 provider hooks"
+      else
+        warn "Capture scripts installed, but provider hooks need manual setup"
+      fi
+    else
+      warn "clare2-corpus-capture templates are incomplete; hooks not installed"
     fi
   fi
 
