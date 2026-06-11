@@ -1441,9 +1441,10 @@ run_setup_flow() {
   SETUP_INSTALLED_SKILLS=""
 
   header "CLARE Setup — Step 1: Project Info"
-  local project_name
-  project_name="$(ask "Project name" "$(basename "$setup_target")")"
-  [[ -n "$project_name" ]] || project_name="$(basename "$setup_target")"
+  local project_name default_project_name
+  default_project_name="$(basename "$(cd "$setup_target" && pwd)")"
+  project_name="$(ask "Project name" "$default_project_name")"
+  [[ -n "$project_name" ]] || project_name="$default_project_name"
   echo ""
   info "Setting up CLARE for: $project_name"
 
