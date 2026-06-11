@@ -26,6 +26,7 @@ test_hook_install_is_idempotent() {
   local project="$TEMP/project"
   mkdir -p "$project/clare/templates" "$project/clare/scripts"
   cp -R "$ROOT/clare/templates/hooks" "$project/clare/templates/hooks"
+  cp -R "$ROOT/clare/templates/scripts" "$project/clare/templates/scripts"
   cp "$INSTALL" "$project/clare/scripts/clare2-install-hooks.sh"
   git -C "$project" init -q
   mkdir -p "$project/.codex" "$project/.claude"
@@ -51,6 +52,8 @@ test_hook_install_is_idempotent() {
     "$project/.claude/settings.json" >/dev/null
   jq -e '.version == 1 and (.hooks.userPromptSubmitted | length == 1)' \
     "$project/.github/hooks/clare2-corpus.json" >/dev/null
+
+  [[ -x "$project/clare/scripts/clare2-capture-event.sh" ]]
 }
 
 test_capture_records_and_redacts

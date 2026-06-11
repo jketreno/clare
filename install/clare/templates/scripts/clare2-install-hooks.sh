@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 TEMPLATES="${ROOT}/clare/templates/hooks"
+SCRIPTS_TEMPLATES="${ROOT}/clare/templates/scripts"
+SCRIPTS_TARGET="${ROOT}/clare/scripts"
 
 command -v jq >/dev/null 2>&1 || {
   echo "jq is required to merge CLARE2 hook configuration" >&2
@@ -38,6 +40,10 @@ merge_hooks() {
   chmod 0644 "$temporary"
   mv "$temporary" "$target"
 }
+
+mkdir -p "$SCRIPTS_TARGET"
+cp "$SCRIPTS_TEMPLATES/clare2-capture-event.sh" "$SCRIPTS_TARGET/clare2-capture-event.sh"
+chmod 0755 "$SCRIPTS_TARGET/clare2-capture-event.sh"
 
 merge_hooks "$TEMPLATES/codex-hooks.json" "$ROOT/.codex/hooks.json"
 merge_hooks "$TEMPLATES/claude-hooks.json" "$ROOT/.claude/settings.json"

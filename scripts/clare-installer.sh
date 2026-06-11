@@ -442,6 +442,39 @@ copy_dir_update() {
   done < <(find "$src_dir" -type f -print0 | sort -z)
 }
 
+# install_clare2_corpus_capture <source_root> <target_dir>
+#   clare/verify-ci.sh emits CLARE2 corpus signals (_clare2_emit_ci_result,
+#   _clare2_autonomy_tier, etc.) and is one of the key corpus-generation
+#   layers. Its capture-event/hook-install scripts and the provider hook
+#   wiring they create are dependencies of that role, so they are kept in
+#   sync alongside verify-ci.sh rather than gated behind skill selection.
+install_clare2_corpus_capture() {
+  local source_root="$1"
+  local target_dir="$2"
+  local capture_script="$source_root/install/clare/templates/scripts/clare2-capture-event.sh"
+  local hook_installer="$source_root/install/clare/templates/scripts/clare2-install-hooks.sh"
+
+  [[ -f "$capture_script" && -f "$hook_installer" ]] || return 0
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    info "Dry run: would install clare/scripts/clare2-{capture-event,install-hooks}.sh and run hook installer"
+    return 0
+  fi
+
+  mkdir -p "$target_dir/clare/scripts"
+  cp "$capture_script" "$target_dir/clare/scripts/clare2-capture-event.sh"
+  cp "$hook_installer" "$target_dir/clare/scripts/clare2-install-hooks.sh"
+  chmod +x \
+    "$target_dir/clare/scripts/clare2-capture-event.sh" \
+    "$target_dir/clare/scripts/clare2-install-hooks.sh"
+
+  if (cd "$target_dir" && ./clare/scripts/clare2-install-hooks.sh >/dev/null); then
+    success "Installed CLARE2 corpus capture scripts and provider hooks"
+  else
+    warn "CLARE2 corpus capture scripts installed, but provider hooks need manual setup"
+  fi
+}
+
 # prompt_update_file src dst
 #   Central file-write function for managed files during update.
 #   - New file (dst missing): create without prompting
@@ -1046,30 +1079,11 @@ install_skill_item() {
   fi
 
   if [[ "$name" == "clare2-corpus-capture" ]]; then
+    # Primary install path is the always-updated block (see
+    # install_clare2_corpus_capture call near verify-ci.sh); this is a
+    # refresh in case setup is run standalone against an older source tree.
     local source_root="${src_file%/install/clare/templates/skills/*}"
-    local scripts_root="$source_root/install/clare/templates/scripts"
-    local capture_script="$scripts_root/clare2-capture-event.sh"
-    local hook_installer="$scripts_root/clare2-install-hooks.sh"
-    if [[ -f "$capture_script" && -f "$hook_installer" ]]; then
-      mkdir -p "$setup_target/clare/scripts"
-      cp "$capture_script" "$setup_target/clare/scripts/clare2-capture-event.sh"
-      cp "$hook_installer" "$setup_target/clare/scripts/clare2-install-hooks.sh"
-      chmod +x \
-        "$setup_target/clare/scripts/clare2-capture-event.sh" \
-        "$setup_target/clare/scripts/clare2-install-hooks.sh"
-      success "Installed: clare/scripts/clare2-capture-event.sh"
-      success "Installed: clare/scripts/clare2-install-hooks.sh"
-      if (
-        cd "$setup_target"
-        ./clare/scripts/clare2-install-hooks.sh
-      ); then
-        success "Installed CLARE2 provider hooks"
-      else
-        warn "Capture scripts installed, but provider hooks need manual setup"
-      fi
-    else
-      warn "clare2-corpus-capture templates are incomplete; hooks not installed"
-    fi
+    install_clare2_corpus_capture "$source_root" "$setup_target"
   fi
 
   cp "$src_file" "$prompts_dir/${name}.prompt.md"
@@ -1727,6 +1741,9 @@ fi
 # CLARE-managed files (always updated).
 # These are framework-owned assets that should track the installer version.
 copy_file_update "$SOURCE_ROOT/clare/verify-ci.sh" "$TARGET_DIR/clare/verify-ci.sh"
+# clare/verify-ci.sh emits CLARE2 corpus signals; keep its capture-event/
+# hook-install scripts and provider hooks in sync.
+install_clare2_corpus_capture "$SOURCE_ROOT" "$TARGET_DIR"
 copy_file_update "$SOURCE_ROOT/clare/principles.md" "$TARGET_DIR/clare/principles.md"
 copy_dir_update "$SOURCE_ROOT/install/.github" "$TARGET_DIR/.github" "prompts"
 copy_dir_update "$SOURCE_ROOT/install/.cursor" "$TARGET_DIR/.cursor"
