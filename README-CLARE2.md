@@ -5,13 +5,16 @@ inference path shares the existing Qwen3.5 vLLM service through an authenticated
 policy proxy; agents never access vLLM management routes, adapter paths, Docker,
 or mutable adapter aliases.
 
+All generation, distillation, summarization, evaluation, and training runs on
+the local DGX. No remote model service is part of the pipeline.
+
 For deployment and corpus operations, see [HOWTO.md](HOWTO.md).
 
 ## Runtime
 
 The sibling `ai-vllm` repository contains:
 
-- `clare2-policy`: OpenAI-compatible proxy, registry controller, lifecycle, and operator API.
+- `clare2-policy`: inference proxy, registry controller, lifecycle, and operator API.
 - `clare2-mcp`: route/status/list tools for agents.
 - `vllm-engine`: private Qwen3.5 FP8 inference with runtime LoRA enabled.
 - `clare2-train`: one-shot Qwen3.5 non-FP8 rank-32 QLoRA training.

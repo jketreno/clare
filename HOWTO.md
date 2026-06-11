@@ -18,8 +18,7 @@ export CLARE2_ROOT=/path/to/ai-vllm
 - A supported NVIDIA GPU with enough memory for Qwen3.5
 - Hugging Face access to serving and training checkpoints
 - Python 3 and `jq` on developer workstations
-- For automated distillation/summarization only: Anthropic access or an
-  OpenAI-compatible local model
+- Local Qwen3.5 serving through the included vLLM container
 
 Runtime endpoints:
 - `127.0.0.1:8000`: policy proxy and operator API
@@ -27,8 +26,7 @@ Runtime endpoints:
 - private `vllm-engine`: base model and runtime LoRA management
 - `corpus/`: sessions, episodes, summaries, themes, and training data
 - `models/adapters/registry.json`: adapter source of truth
-Inference and training do not require Anthropic; omit a distillation model when
-importing prebuilt episodes, themes, or SFT records.
+Distillation and summarization use the same local Qwen3.5 vLLM service.
 
 ## 2. Configure Models
 ```bash
@@ -90,7 +88,6 @@ cd "$CLARE2_ROOT"
 mkdir -p secrets
 umask 077
 printf '%s' '<Hugging Face token>' > secrets/huggingface_token
-printf '%s' '<Anthropic key>' > secrets/anthropic_api_key
 printf '%s' '<LDAP password or unused placeholder>' > secrets/ldap_app_password
 openssl rand -hex 32 > secrets/clare2_proxy_token
 openssl rand -hex 32 > secrets/clare2_operator_token
@@ -99,11 +96,10 @@ chmod 600 secrets/*
 ```
 
 Use separate CLARE₂ token values. Rotate credentials previously shared in
-plaintext. To distill with the local base model instead of Anthropic:
+plaintext. Distillation uses the local base model:
 
 ```dotenv
 CLARE2_DISTILL_MODEL=Qwen/Qwen3.5-35B-A3B-FP8
-CLARE2_LOCAL_LLM_URL=http://clare2-policy:8000/v1
 ```
 
 ## 4. Build and Start
@@ -161,8 +157,8 @@ eval "$("$CLARE2_ROOT/clare2/scripts/clare2-session-start.sh")"
 ```
 
 This records `session_meta`, `ci_result`, `correction`, and `file_tier` objects
-under `corpus/sessions/YYYY/MM/DD/<uuid>.jsonl`. Claude Code users can run
-`/project:clare2-capture start`, `status`, and `stop`.
+under `corpus/sessions/YYYY/MM/DD/<uuid>.jsonl`. The supplied capture command
+supports `start`, `status`, and `stop`.
 
 ### B. Agent hooks or wrappers
 Have start/stop or tool hooks append normalized JSONL to

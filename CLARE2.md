@@ -22,6 +22,10 @@ runtime load/unload APIs, adapter filesystem paths, and Docker control remain on
 private networks. Operator endpoints bind to localhost and require a bearer
 token. Training completion uses a run-bound HMAC callback.
 
+Distillation, summarization, evaluation, inference, and training all run on the
+single DGX using the pinned Qwen3.5 checkpoints. The pipeline has no remote
+model-provider path.
+
 ## Registry
 
 `/models/adapters/registry.json` is atomically written with `fsync` and rename.
