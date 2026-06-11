@@ -154,10 +154,15 @@ The supported CLARE₂ ingestion location is:
 $CLARE2_ROOT/corpus/sessions/YYYY/MM/DD/<session-id>.jsonl
 ```
 
-The setup command's `--capture-project` option installs
-`<project>/.codex/hooks.json`. Those hooks normalize `UserPromptSubmit` and
-`Stop` events into `interaction` records. Launch Codex through the wrapper so
-the hooks and child commands share one `CLARE2_SESSION_FILE`:
+The setup command's `--capture-project` option installs hooks for all supported
+agents:
+
+- **Codex**: `~/.codex/hooks.json` — normalizes `UserPromptSubmit` and `Stop` events
+- **Claude Code**: `~/.claude/settings.json` — normalizes `user_prompt_submit` and `stop` events
+- **GitHub Copilot**: `~/.github/hooks/clare2-corpus.json` — normalizes `UserPromptSubmit` and `Stop` events
+
+These hooks normalize agent events into `interaction` records. Launch any agent
+through the wrapper so the hooks and child commands share one `CLARE2_SESSION_FILE`:
 
 ```bash
 cd "$CLARE2_ROOT"

@@ -9,6 +9,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex user_prompt",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
@@ -17,6 +26,37 @@
           {
             "type": "command",
             "command": "/home/jketreno/docker/ai-vllm/clare2/scripts/clare2-capture-hook.sh Stop",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex assistant_stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex tool_result",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex session_start",
             "timeout": 10
           }
         ]
