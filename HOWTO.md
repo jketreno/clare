@@ -20,13 +20,6 @@ export CLARE2_ROOT=/path/to/ai-vllm
 - `openssl`, `curl`, `jq`, and `flock`
 - Local Qwen3.5 serving through the included vLLM container
 
-Runtime endpoints:
-- `127.0.0.1:5000`: MLflow training runs and adapter artifacts
-- `127.0.0.1:8000`: policy proxy and operator API
-- `127.0.0.1:8002`: Temper MCP tools
-- private `vllm-engine`: base model and runtime LoRA management
-- `corpus/`: sessions, episodes, summaries, themes, and training data
-- `models/adapters/registry.json`: adapter source of truth
 Distillation and summarization use the same local Qwen3.5 vLLM service.
 
 ## 2. Run Automated Setup
@@ -61,6 +54,15 @@ The model cache is a host bind mount shared by vLLM and the trainer:
 
 Override it with `CLARE2_MODEL_CACHE=/absolute/path`. The script writes the
 absolute path to `.env`. `vllm-engine` still has no host-published port.
+
+### Resulting Services and Storage
+
+- `127.0.0.1:5000`: MLflow training runs and adapter artifacts
+- `127.0.0.1:8000`: policy proxy and operator API
+- `127.0.0.1:8002`: Temper MCP tools
+- private `vllm-engine`: base model and runtime LoRA management
+- `corpus/`: sessions, episodes, summaries, themes, and training data
+- `models/adapters/registry.json`: adapter source of truth
 
 ## 3. Connect Agents
 Register the streamable HTTP MCP server:
