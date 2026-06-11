@@ -1,17 +1,21 @@
 # CLARE₂ Setup and Operations HOWTO
 
-This guide configures sibling repositories:
+This guide uses two sibling repositories:
 
 ```text
-/home/you/docker/{clare,ai-vllm}
+/home/you/docker/clare      # CLARE framework and agent configuration
+/home/you/docker/ai-vllm    # CLARE₂ runtime and setup-clare2.sh
 ```
 
-For another layout:
+Set each variable to its repository checkout:
 
 ```bash
 export CLARE_ROOT=/path/to/clare
 export CLARE2_ROOT=/path/to/ai-vllm
 ```
+
+CLARE₂ is the runtime implemented in `ai-vllm`; it is not a separate
+`clare2/` repository.
 
 ## 1. Prerequisites
 - Docker Compose and NVIDIA Container Toolkit
@@ -35,11 +39,10 @@ The setup script performs host configuration in Docker:
 - installs project-local Codex capture hooks
 
 ```bash
-cd "$CLARE2_ROOT"
 HF_TOKEN='<Hugging Face token>' \
 CLARE2_PROJECT_MAP='{"clare":"github:jketreno/clare"}' \
 CLARE2_PROJECT_ID='github:jketreno/clare' \
-./setup-clare2.sh --capture-project "$CLARE_ROOT"
+"$CLARE2_ROOT/setup-clare2.sh" --capture-project "$CLARE_ROOT"
 ```
 
 Without `HF_TOKEN`, an interactive terminal prompts for it. Existing secrets
@@ -49,7 +52,7 @@ starting services.
 The model cache is a host bind mount shared by vLLM and the trainer:
 
 ```text
-./models/huggingface -> /root/.cache/huggingface
+$CLARE2_ROOT/models/huggingface -> /root/.cache/huggingface
 ```
 
 Override it with `CLARE2_MODEL_CACHE=/absolute/path`. The script writes the
