@@ -160,12 +160,14 @@ The supported CLARE₂ ingestion location is:
 $CLARE2_ROOT/corpus/sessions/YYYY/MM/DD/<session-id>.jsonl
 ```
 
-The setup command's `--capture-project` option installs hooks for all supported
-agents:
+The setup command's `--capture-project` option installs project-local hooks
+(under `$CLARE_ROOT`) for all supported agents, normalizing each platform's
+session-start, user-prompt, tool-result, and stop events into `interaction`
+records:
 
-- **Codex**: `~/.codex/hooks.json` — normalizes `UserPromptSubmit` and `Stop` events
-- **Claude Code**: `~/.claude/settings.json` — normalizes `user_prompt_submit` and `stop` events
-- **GitHub Copilot**: `~/.github/hooks/clare2-corpus.json` — normalizes `UserPromptSubmit` and `Stop` events
+- **Codex**: `.codex/hooks.json` — `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Stop`
+- **Claude Code**: `.claude/settings.json` — `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Stop`
+- **GitHub Copilot**: `.github/hooks/clare2-corpus.json` — `sessionStart`, `userPromptSubmitted`, `postToolUse`, `agentStop`
 
 These hooks normalize agent events into `interaction` records. Launch any agent
 through the wrapper so the hooks and child commands share one `CLARE2_SESSION_FILE`:

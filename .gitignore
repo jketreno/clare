@@ -66,4 +66,3 @@ yarn-error.log*
 .envrc
 TODO.md
 ai-vllm
-.vscode/settings.json

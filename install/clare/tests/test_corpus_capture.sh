@@ -29,12 +29,15 @@ test_hook_install_is_idempotent() {
   cp -R "$ROOT/clare/templates/scripts" "$project/clare/templates/scripts"
   cp "$INSTALL" "$project/clare/scripts/clare2-install-hooks.sh"
   git -C "$project" init -q
-  mkdir -p "$project/.codex" "$project/.claude"
+  mkdir -p "$project/.codex" "$project/.claude" "$project/.github/hooks"
   printf '%s\n' \
     '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"true"}]}]}}' \
     >"$project/.codex/hooks.json"
   printf '%s\n' '{"permissions":{"allow":["Bash(git status)"]}}' \
     >"$project/.claude/settings.json"
+  printf '%s\n' \
+    '{"version":1,"hooks":{"agentStop":[{"type":"command","bash":"./custom.sh","cwd":".","timeoutSec":5}]}}' \
+    >"$project/.github/hooks/clare2-corpus.json"
 
   (
     cd "$project"
@@ -51,6 +54,10 @@ test_hook_install_is_idempotent() {
   jq -e '.permissions.allow == ["Bash(git status)"]' \
     "$project/.claude/settings.json" >/dev/null
   jq -e '.version == 1 and (.hooks.userPromptSubmitted | length == 1)' \
+    "$project/.github/hooks/clare2-corpus.json" >/dev/null
+  jq -e '[.hooks.agentStop[].bash] | index("./custom.sh") != null' \
+    "$project/.github/hooks/clare2-corpus.json" >/dev/null
+  jq -e '.hooks.agentStop | length == 2' \
     "$project/.github/hooks/clare2-corpus.json" >/dev/null
 
   [[ -x "$project/clare/scripts/clare2-capture-event.sh" ]]

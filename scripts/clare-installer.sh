@@ -449,6 +449,83 @@ copy_dir_update() {
   done < <(find "$src_dir" -type f -print0 | sort -z)
 }
 
+ensure_clare2_autonomy_boundaries() {
+  local target_dir="$1"
+  local autonomy_file="$target_dir/clare/autonomy.yml"
+  local autonomy_rel="${autonomy_file#"$target_dir"/}"
+  local temporary
+
+  [[ -d "$target_dir/clare2" && -f "$autonomy_file" ]] || return 0
+
+  if git -C "$target_dir" ls-files --error-unmatch "$autonomy_rel" \
+    >/dev/null 2>&1 \
+    && [[ -n "$(git -C "$target_dir" status --porcelain -- "$autonomy_rel")" ]]; then
+    warn "Skipped CLARE2 autonomy boundaries: $autonomy_rel has local changes"
+    return 0
+  fi
+
+  if ! temporary="$(mktemp)"; then
+    error "Failed to create temporary file while syncing CLARE2 autonomy boundaries"
+    return 1
+  fi
+
+  awk '
+    function unquote(value) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      if (value ~ /^".*"$/ || value ~ /^'\''.*'\''$/) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      return value
+    }
+    function emit_boundaries() {
+      if (emitted) {
+        return
+      }
+      if (!seen_clare2) {
+        print "  - path: \"clare2\""
+        print "    level: supervised"
+        print "    reason: \"Project-owned CLARE2 service; changes require human review\""
+        print ""
+      }
+      if (!seen_hooks) {
+        print "  - path: \"clare2/templates/hooks\""
+        print "    level: humans-only"
+        print "    reason: \"Authoritative provider hook definitions; CLARE consumes but does not overwrite these assets\""
+        print ""
+      }
+      if (!seen_installer) {
+        print "  - path: \"clare2/scripts/clare2-install-hooks.sh\""
+        print "    level: humans-only"
+        print "    reason: \"Authoritative hook installer; changes affect every configured agent provider\""
+        print ""
+      }
+      emitted = 1
+    }
+    {
+      if ($0 ~ /^[[:space:]]*-[[:space:]]*path:[[:space:]]*/) {
+        path = $0
+        sub(/^[[:space:]]*-[[:space:]]*path:[[:space:]]*/, "", path)
+        path = unquote(path)
+        if (path == "clare2") seen_clare2 = 1
+        if (path == "clare2/templates/hooks") seen_hooks = 1
+        if (path == "clare2/scripts/clare2-install-hooks.sh") seen_installer = 1
+        if (path == "*") emit_boundaries()
+      }
+      print
+    }
+    END {
+      if (!emitted) emit_boundaries()
+    }
+  ' "$autonomy_file" >"$temporary"
+
+  if ! cmp -s "$autonomy_file" "$temporary"; then
+    mv "$temporary" "$autonomy_file"
+    info "Added authoritative CLARE2 boundaries to clare/autonomy.yml"
+  else
+    rm -f "$temporary"
+  fi
+}
+
 # install_clare2_corpus_capture <source_root> <target_dir>
 #   clare/verify-ci.sh emits CLARE2 corpus signals (_clare2_emit_ci_result,
 #   _clare2_autonomy_tier, etc.) and is one of the key corpus-generation
@@ -460,22 +537,45 @@ install_clare2_corpus_capture() {
   local target_dir="$2"
   local capture_script="$source_root/install/clare/templates/scripts/clare2-capture-event.sh"
   local hook_installer="$source_root/install/clare/templates/scripts/clare2-install-hooks.sh"
+  local authoritative_installer="$target_dir/clare2/scripts/clare2-install-hooks.sh"
 
   [[ -f "$capture_script" && -f "$hook_installer" ]] || return 0
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    info "Dry run: would install clare/scripts/clare2-{capture-event,install-hooks}.sh and run hook installer"
+    if [[ -f "$authoritative_installer" ]]; then
+      info "Dry run: would install clare/scripts/clare2-capture-event.sh and run authoritative clare2 hook installer"
+    else
+      info "Dry run: would install clare/scripts/clare2-{capture-event,install-hooks}.sh and run hook installer"
+    fi
     return 0
   fi
 
   mkdir -p "$target_dir/clare/scripts"
   cp "$capture_script" "$target_dir/clare/scripts/clare2-capture-event.sh"
-  cp "$hook_installer" "$target_dir/clare/scripts/clare2-install-hooks.sh"
-  chmod +x \
-    "$target_dir/clare/scripts/clare2-capture-event.sh" \
-    "$target_dir/clare/scripts/clare2-install-hooks.sh"
+  chmod +x "$target_dir/clare/scripts/clare2-capture-event.sh"
 
-  if (cd "$target_dir" && ./clare/scripts/clare2-install-hooks.sh >/dev/null); then
+  if [[ -f "$authoritative_installer" ]]; then
+    hook_installer="$authoritative_installer"
+    info "Using project-owned clare2 hook assets"
+  else
+    cp "$hook_installer" "$target_dir/clare/scripts/clare2-install-hooks.sh"
+    hook_installer="$target_dir/clare/scripts/clare2-install-hooks.sh"
+    chmod +x "$hook_installer"
+  fi
+
+  if [[ "$hook_installer" == "$authoritative_installer" ]]; then
+    if ! bash "$hook_installer" "$target_dir" >/dev/null; then
+      warn "Authoritative CLARE2 hook installer failed; provider hooks need manual setup"
+      return 0
+    fi
+  else
+    if ! (cd "$target_dir" && ./clare/scripts/clare2-install-hooks.sh >/dev/null); then
+      warn "CLARE2 corpus capture scripts installed, but provider hooks need manual setup"
+      return 0
+    fi
+  fi
+
+  if [[ -f "$target_dir/.github/hooks/clare2-corpus.json" ]]; then
     success "Installed CLARE2 corpus capture scripts and provider hooks"
   else
     warn "CLARE2 corpus capture scripts installed, but provider hooks need manual setup"
@@ -1927,6 +2027,7 @@ copy_dir_update "$SOURCE_ROOT/install/clare/docs" "$TARGET_DIR/clare/docs"
 # These are user-customizable entry points and should not be overwritten.
 copy_file_if_missing "$SOURCE_ROOT/install/clare/verify-local.sh" "$TARGET_DIR/clare/verify-local.sh"
 copy_file_if_missing "$SOURCE_ROOT/install/clare/autonomy.yml" "$TARGET_DIR/clare/autonomy.yml"
+ensure_clare2_autonomy_boundaries "$TARGET_DIR"
 copy_file_if_missing "$SOURCE_ROOT/clare/extensions.yml" "$TARGET_DIR/clare/extensions.yml"
 copy_file_if_missing "$SOURCE_ROOT/install/root/.gitignore" "$TARGET_DIR/.gitignore"
 
