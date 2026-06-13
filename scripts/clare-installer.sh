@@ -1899,6 +1899,10 @@ fi
 # CLARE-managed files (always updated).
 # These are framework-owned assets that should track the installer version.
 copy_file_update "$SOURCE_ROOT/clare/verify-ci.sh" "$TARGET_DIR/clare/verify-ci.sh"
+# clare/scripts/clare2-install-hooks.sh (run by install_clare2_corpus_capture
+# below) copies clare2-capture-event.sh out of clare/templates/scripts/, so
+# clare/templates must be synced first.
+copy_dir_update "$SOURCE_ROOT/install/clare/templates" "$TARGET_DIR/clare/templates"
 # clare/verify-ci.sh emits CLARE2 corpus signals; keep its capture-event/
 # hook-install scripts and provider hooks in sync.
 install_clare2_corpus_capture "$SOURCE_ROOT" "$TARGET_DIR"
@@ -1916,7 +1920,6 @@ merge_or_copy_vscode_json "$SOURCE_ROOT/install/.vscode/tasks.json" "$TARGET_DIR
 copy_file_update "$SOURCE_ROOT/install/root/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
 copy_file_update "$SOURCE_ROOT/install/root/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_file_update "$SOURCE_ROOT/install/root/.cursorrules" "$TARGET_DIR/.cursorrules"
-copy_dir_update "$SOURCE_ROOT/install/clare/templates" "$TARGET_DIR/clare/templates"
 copy_dir_update "$SOURCE_ROOT/install/clare/examples" "$TARGET_DIR/clare/examples"
 copy_dir_update "$SOURCE_ROOT/install/clare/docs" "$TARGET_DIR/clare/docs"
 
