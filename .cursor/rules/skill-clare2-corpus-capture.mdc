@@ -29,6 +29,11 @@ export CLARE2_ROOT=/absolute/path/to/ai-vllm
 `CLARE2_SESSION_FILE` takes precedence when an existing wrapper or command has
 already initialized a session.
 
+Text content is redacted and limited to 12,000 characters by default. Set
+`CLARE2_CAPTURE_MAX_CHARS` to a smaller non-negative integer, or `0` to disable
+prompt, response, and correction text capture while retaining lifecycle and
+tool outcome events.
+
 Reinstall or repair the project hooks with:
 
 ```bash

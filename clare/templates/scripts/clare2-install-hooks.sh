@@ -19,7 +19,15 @@ command -v jq >/dev/null 2>&1 || {
 merge_hooks() {
   local template=$1
   local target=$2
+  local relative="${target#"$ROOT"/}"
   local temporary
+
+  if [[ -e "$target" ]] \
+    && [[ -n "$(git -C "$ROOT" status --porcelain -- "$relative" 2>/dev/null || true)" ]]; then
+    echo "Skipped CLARE2 hook merge: $relative has local changes" >&2
+    return 0
+  fi
+
   temporary=$(mktemp)
 
   mkdir -p "$(dirname "$target")"

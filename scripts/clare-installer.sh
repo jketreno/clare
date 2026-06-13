@@ -551,14 +551,18 @@ install_clare2_corpus_capture() {
   fi
 
   mkdir -p "$target_dir/clare/scripts"
-  cp "$capture_script" "$target_dir/clare/scripts/clare2-capture-event.sh"
+  prompt_update_file \
+    "$capture_script" \
+    "$target_dir/clare/scripts/clare2-capture-event.sh" || return 1
   chmod +x "$target_dir/clare/scripts/clare2-capture-event.sh"
 
   if [[ -f "$authoritative_installer" ]]; then
     hook_installer="$authoritative_installer"
     info "Using project-owned clare2 hook assets"
   else
-    cp "$hook_installer" "$target_dir/clare/scripts/clare2-install-hooks.sh"
+    prompt_update_file \
+      "$hook_installer" \
+      "$target_dir/clare/scripts/clare2-install-hooks.sh" || return 1
     hook_installer="$target_dir/clare/scripts/clare2-install-hooks.sh"
     chmod +x "$hook_installer"
   fi
@@ -1335,7 +1339,7 @@ install_skill_item() {
     # install_clare2_corpus_capture call near verify-ci.sh); this is a
     # refresh in case setup is run standalone against an older source tree.
     local source_root="${src_file%/install/clare/templates/skills/*}"
-    install_clare2_corpus_capture "$source_root" "$setup_target"
+    install_clare2_corpus_capture "$source_root" "$setup_target" || return 1
   fi
 
   cp "$src_file" "$prompts_dir/${name}.prompt.md"
@@ -2005,7 +2009,7 @@ copy_file_update "$SOURCE_ROOT/clare/verify-ci.sh" "$TARGET_DIR/clare/verify-ci.
 copy_dir_update "$SOURCE_ROOT/install/clare/templates" "$TARGET_DIR/clare/templates"
 # clare/verify-ci.sh emits CLARE2 corpus signals; keep its capture-event/
 # hook-install scripts and provider hooks in sync.
-install_clare2_corpus_capture "$SOURCE_ROOT" "$TARGET_DIR"
+install_clare2_corpus_capture "$SOURCE_ROOT" "$TARGET_DIR" || exit "$EXIT_ABORT"
 copy_file_update "$SOURCE_ROOT/clare/principles.md" "$TARGET_DIR/clare/principles.md"
 copy_dir_update "$SOURCE_ROOT/install/.github" "$TARGET_DIR/.github" "prompts"
 copy_dir_update "$SOURCE_ROOT/install/.cursor" "$TARGET_DIR/.cursor"

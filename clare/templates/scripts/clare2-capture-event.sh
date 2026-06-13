@@ -3,6 +3,11 @@ set -uo pipefail
 
 SOURCE="${1:-generic}"
 EVENT="${2:-event}"
+MAX_CONTENT_CHARS="${CLARE2_CAPTURE_MAX_CHARS:-12000}"
+
+if [[ ! "$MAX_CONTENT_CHARS" =~ ^[0-9]+$ ]]; then
+  MAX_CONTENT_CHARS=12000
+fi
 
 command -v jq >/dev/null 2>&1 || exit 0
 INPUT=$(cat 2>/dev/null || true)
@@ -43,18 +48,33 @@ record=$(printf '%s' "$PAYLOAD" | jq -c \
   --arg source "$SOURCE" \
   --arg event "$EVENT" \
   --arg ts "$timestamp" \
-  --arg project "$project" '
+  --arg project "$project" \
+  --argjson max_content_chars "$MAX_CONTENT_CHARS" '
   def redact:
-    gsub("(?i)(?<prefix>bearer[ ]+)[A-Za-z0-9._~+/-]+";
+    gsub("(?s)```.*?```"; "[REDACTED CODE BLOCK]")
+    | gsub("(?is)-----BEGIN [^-\\n]+-----.*?-----END [^-\\n]+-----";
+        "[REDACTED PRIVATE KEY]")
+    | gsub("(?i)(?<prefix>authorization[\" ]*[=:][\" ]*)[^\\r\\n\"]+";
         "\(.prefix)[REDACTED]")
-    | gsub("(?i)(?<label>api[_-]?key|token|password)(?<separator>[\" =:]+)[^ ,\"\n]+";
-        "\(.label)\(.separator)[REDACTED]");
+    | gsub("(?i)(?<prefix>bearer[ ]+)[A-Za-z0-9._~+/-]+";
+        "\(.prefix)[REDACTED]")
+    | gsub("(?i)(?<label>aws_access_key_id|aws_secret_access_key|api[_-]?key|access[_-]?key|client[_-]?secret|private[_-]?key|secret|token|password)(?<separator>[\" ]*[=:][\" ]*)[^ ,;\"\\r\\n]+";
+        "\(.label)\(.separator)[REDACTED]")
+    | gsub("(?i)(gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})";
+        "[REDACTED TOKEN]");
+  def bounded:
+    if $max_content_chars == 0 then ""
+    elif length > $max_content_chars then
+      .[0:$max_content_chars] + "\n[TRUNCATED]"
+    else .
+    end;
+  def protected: tostring | redact | bounded;
   def session: (.session_id // .sessionId // null);
   def turn: (.turn_id // .turnId // null);
   if $event == "user_prompt" then
     {
       type: "interaction", source: $source, role: "user",
-      content: ((.prompt // "") | tostring | redact),
+      content: ((.prompt // "") | protected),
       session_id: session, turn_id: turn, ts: $ts, project: $project
     } | select(.content != "")
   elif $event == "assistant_stop" then
@@ -67,7 +87,7 @@ record=$(printf '%s' "$PAYLOAD" | jq -c \
       else
         {
           type: "interaction", source: $source, role: "assistant",
-          content: ($message | tostring | redact), session_id: session,
+          content: ($message | protected), session_id: session,
           turn_id: turn, ts: $ts, project: $project
         }
       end
@@ -81,8 +101,8 @@ record=$(printf '%s' "$PAYLOAD" | jq -c \
   elif $event == "correction" then
     {
       type: "correction", source: $source,
-      problem: ((.problem // "") | tostring | redact),
-      preferred: ((.preferred // "") | tostring | redact),
+      problem: ((.problem // "") | protected),
+      preferred: ((.preferred // "") | protected),
       session_id: session, turn_id: turn, ts: $ts, project: $project
     } | select(.problem != "" and .preferred != "")
   else

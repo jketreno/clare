@@ -1,5 +1,7 @@
 CLARE env-scan skill
 
+The CLARE installer requires Git, Bash, and `jq`.
+
 This directory contains the `clare-env-scan` skill: a small helper that
 inspects a repository for common files, extracts tooling requirements from
 `clare/verify-ci.sh` and `clare/verify-local.sh`, and recommends VS Code

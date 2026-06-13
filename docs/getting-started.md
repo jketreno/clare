@@ -9,6 +9,7 @@
 
 - Git
 - bash (Linux, macOS, or WSL on Windows)
+- jq
 - Your AI tool: VS Code + GitHub Copilot, Claude Code, Cursor, or Codex
 
 Windows note:

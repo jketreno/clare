@@ -9,7 +9,7 @@ trap 'rm -rf "$TEMP"' EXIT
 new_project() {
   local project="$1"
   mkdir -p "$project/clare" "$project/.vscode" "$project/clare/templates/hooks" "$project/clare/templates/scripts"
-  echo "sources_of_truth: {}" >"$project/clare/autonomy.yml"
+  cp "$ROOT/install/clare/autonomy.yml" "$project/clare/autonomy.yml"
   cp "$ROOT/install/.vscode/settings.json" "$project/.vscode/settings.json"
   cp "$ROOT/install/.vscode/extensions.json" "$project/.vscode/extensions.json"
   cp "$ROOT/install/.vscode/tasks.json" "$project/.vscode/tasks.json"
@@ -121,8 +121,75 @@ test_untracked_file_is_skipped() {
   [[ "$before" == "$after" ]]
 }
 
+test_dirty_and_untracked_hook_configs_are_preserved() {
+  local project="$TEMP/hook-config-project"
+  new_project "$project"
+  mkdir -p "$project/.codex" "$project/.claude"
+  printf '%s\n' '{"hooks":{}}' >"$project/.codex/hooks.json"
+  git -C "$project" -c user.email=test@example.com -c user.name=test add -A
+  git -C "$project" -c user.email=test@example.com -c user.name=test commit -qm hooks
+
+  printf '%s\n' '{"hooks":{},"local":"dirty"}' >"$project/.codex/hooks.json"
+  printf '%s\n' '{"permissions":{"allow":["Bash(custom)"]}}' \
+    >"$project/.claude/settings.json"
+  local codex_before claude_before
+  codex_before="$(cat "$project/.codex/hooks.json")"
+  claude_before="$(cat "$project/.claude/settings.json")"
+
+  "$INSTALLER" --update --target "$project" --yes --no-setup >/dev/null
+
+  [[ "$codex_before" == "$(cat "$project/.codex/hooks.json")" ]]
+  [[ "$claude_before" == "$(cat "$project/.claude/settings.json")" ]]
+  jq -e '.hooks.sessionStart | length == 1' \
+    "$project/.github/hooks/clare2-corpus.json" >/dev/null
+}
+
+test_clare2_assets_are_authoritative_and_restricted() {
+  local project="$TEMP/clare2-project"
+  new_project "$project"
+  mkdir -p "$project/clare2/scripts" "$project/clare2/templates/hooks"
+
+  cat >"$project/clare2/scripts/clare2-install-hooks.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+project=$1
+mkdir -p "$project/.github/hooks"
+printf '{"version":1,"source":"clare2"}\n' \
+  >"$project/.github/hooks/clare2-corpus.json"
+touch "$project/clare2-installer-ran"
+EOF
+  printf '{"source":"clare2"}\n' \
+    >"$project/clare2/templates/hooks/copilot-hooks.json"
+  git -C "$project" -c user.email=test@example.com -c user.name=test add -A
+  git -C "$project" -c user.email=test@example.com -c user.name=test commit -qm clare2
+
+  "$INSTALLER" --update --target "$project" --yes --no-setup >/dev/null
+
+  [[ -f "$project/clare2-installer-ran" ]]
+  [[ ! -x "$project/clare2/scripts/clare2-install-hooks.sh" ]]
+  jq -e '.source == "clare2"' \
+    "$project/.github/hooks/clare2-corpus.json" >/dev/null
+  grep -A2 'path: "clare2"$' "$project/clare/autonomy.yml" \
+    | grep -q 'level: supervised'
+  grep -A2 'path: "clare2/templates/hooks"$' "$project/clare/autonomy.yml" \
+    | grep -q 'level: humans-only'
+  grep -A2 'path: "clare2/scripts/clare2-install-hooks.sh"$' \
+    "$project/clare/autonomy.yml" | grep -q 'level: humans-only'
+
+  local before
+  before="$(cat "$project/clare/autonomy.yml")"
+  git -C "$project" -c user.email=test@example.com -c user.name=test add -A
+  git -C "$project" -c user.email=test@example.com -c user.name=test commit -qm updated
+
+  "$INSTALLER" --update --target "$project" --yes --no-setup >/dev/null
+
+  [[ "$before" == "$(cat "$project/clare/autonomy.yml")" ]]
+}
+
 test_merge_preserves_project_additions
 test_merge_is_idempotent
 test_dirty_file_is_skipped
 test_untracked_file_is_skipped
+test_dirty_and_untracked_hook_configs_are_preserved
+test_clare2_assets_are_authoritative_and_restricted
 echo "CLARE .vscode JSON merge tests passed"

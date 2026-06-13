@@ -121,6 +121,29 @@ test_untracked_file_is_skipped() {
   [[ "$before" == "$after" ]]
 }
 
+test_dirty_and_untracked_hook_configs_are_preserved() {
+  local project="$TEMP/hook-config-project"
+  new_project "$project"
+  mkdir -p "$project/.codex" "$project/.claude"
+  printf '%s\n' '{"hooks":{}}' >"$project/.codex/hooks.json"
+  git -C "$project" -c user.email=test@example.com -c user.name=test add -A
+  git -C "$project" -c user.email=test@example.com -c user.name=test commit -qm hooks
+
+  printf '%s\n' '{"hooks":{},"local":"dirty"}' >"$project/.codex/hooks.json"
+  printf '%s\n' '{"permissions":{"allow":["Bash(custom)"]}}' \
+    >"$project/.claude/settings.json"
+  local codex_before claude_before
+  codex_before="$(cat "$project/.codex/hooks.json")"
+  claude_before="$(cat "$project/.claude/settings.json")"
+
+  "$INSTALLER" --update --target "$project" --yes --no-setup >/dev/null
+
+  [[ "$codex_before" == "$(cat "$project/.codex/hooks.json")" ]]
+  [[ "$claude_before" == "$(cat "$project/.claude/settings.json")" ]]
+  jq -e '.hooks.sessionStart | length == 1' \
+    "$project/.github/hooks/clare2-corpus.json" >/dev/null
+}
+
 test_clare2_assets_are_authoritative_and_restricted() {
   local project="$TEMP/clare2-project"
   new_project "$project"
@@ -167,5 +190,6 @@ test_merge_preserves_project_additions
 test_merge_is_idempotent
 test_dirty_file_is_skipped
 test_untracked_file_is_skipped
+test_dirty_and_untracked_hook_configs_are_preserved
 test_clare2_assets_are_authoritative_and_restricted
 echo "CLARE .vscode JSON merge tests passed"
