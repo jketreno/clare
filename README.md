@@ -39,12 +39,12 @@ Want to know the thought process that led to CLARE's design? Read the [origin st
 ### 1 — Install CLARE into your project
 
 <!-- RELEASE_VERSION_START -->
-**Latest release: [v1.4.1](https://github.com/jketreno/clare/releases/tag/v1.4.1)**
+**Latest release: [v1.5.0](https://github.com/jketreno/clare/releases/tag/v1.5.0)**
 
 ```bash
-curl -fsSLO https://github.com/jketreno/clare/releases/download/v1.4.1/clare-installer-v1.4.1.sh
-chmod +x ./clare-installer-v1.4.1.sh
-./clare-installer-v1.4.1.sh --target /path/to/your-project
+curl -fsSLO https://github.com/jketreno/clare/releases/download/v1.5.0/clare-installer-v1.5.0.sh
+chmod +x ./clare-installer-v1.5.0.sh
+./clare-installer-v1.5.0.sh --target /path/to/your-project
 ```
 <!-- RELEASE_VERSION_END -->
 
@@ -141,6 +141,8 @@ The core rule every AI config enforces:
 ---
 
 ## What Gets Installed
+
+Installer prerequisites: Git, Bash, and `jq`. On Windows, use WSL2.
 
 The installer copies these into your project:
 

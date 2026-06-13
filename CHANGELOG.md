@@ -2,6 +2,26 @@
 
 All notable user-facing changes to this project are documented in this file.
 
+## v1.5.0 - 2026-06-13
+
+### Added
+
+- **CLARE2 corpus capture:** Added fail-open lifecycle hooks for Codex, Claude Code, and GitHub Copilot, with mirrored guidance for Cursor and other agents.
+- **CLARE2 production guidance:** Added DGX deployment, authenticated policy-proxy routing, corpus operations, training, evaluation, and rollback documentation.
+- **Selectable verification:** Added numbered verification stages, `--run-tests`, fail-fast/fail-slow execution, and concise failure summaries.
+
+### Changed
+
+- **Installer-safe configuration merges:** VS Code settings, extension recommendations, and tasks are merged while preserving project additions and dirty files.
+- **Capture privacy controls:** Prompt, response, and correction text now redacts common credentials, authorization headers, private keys, tokens, and fenced code blocks; content is bounded by `CLARE2_CAPTURE_MAX_CHARS`.
+- **Installer prerequisites:** Git, Bash, and `jq` are now documented as required installer tools.
+
+### Fixed
+
+- Preserved dirty and untracked provider hook configuration during CLARE updates.
+- Kept project-owned CLARE2 hook assets authoritative and protected by explicit autonomy boundaries.
+- Hardened installer argument handling, project-name resolution, extension updates, and generated template synchronization.
+
 ## v1.4.1 - 2026-05-15
 
 ### Fixed
