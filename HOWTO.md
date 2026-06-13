@@ -96,11 +96,17 @@ create a streamable HTTP server entry named `clare-temper` with URL
 `secrets/clare2_mcp_token` as its bearer token.
 
 For access from another machine, rerun setup with
-`CLARE2_BIND_ADDRESS=0.0.0.0`. Then use
-`http://ai.ketrenos.com:8002/mcp/` for MCP and
-`http://ai.ketrenos.com:8000/v1` for OpenAI-compatible inference. Restrict
-ports `8000` and `8002` to trusted client networks with the host firewall; use
-TLS termination before exposing them to the public internet.
+`CLARE2_BIND_ADDRESS=0.0.0.0`. Then set `AI_SERVER` to the hostname or IP of
+the machine running CLARE2:
+
+```bash
+export AI_SERVER=<your-ai-server>
+```
+
+Use `http://$AI_SERVER:8002/mcp/` for MCP and `http://$AI_SERVER:8000/v1` for
+OpenAI-compatible inference. Restrict ports `8000` and `8002` to trusted
+client networks with the host firewall; use TLS termination before exposing
+them to the public internet.
 
 Tools:
 

@@ -5,15 +5,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/jketreno/docker/ai-vllm/clare2/scripts/clare2-capture-hook.sh UserPromptSubmit",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex user_prompt",
             "timeout": 10
           }
@@ -21,15 +12,6 @@
       }
     ],
     "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/jketreno/docker/ai-vllm/clare2/scripts/clare2-capture-hook.sh Stop",
-            "timeout": 10
-          }
-        ]
-      },
       {
         "hooks": [
           {
