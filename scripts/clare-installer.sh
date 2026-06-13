@@ -426,6 +426,7 @@ copy_dir_update() {
   local src_dir="$1"
   local dst_dir="$2"
   local skip_prefix="${3:-}"
+  local exclude_files="${4:-}"
 
   [[ -d "$src_dir" ]] || return 0
 
@@ -434,6 +435,12 @@ copy_dir_update() {
     rel="${src_file#"$src_dir"/}"
     if [[ -n "$skip_prefix" && "$rel" == "$skip_prefix"* ]]; then
       continue
+    fi
+    if [[ -n "$exclude_files" ]]; then
+      local excluded
+      for excluded in $exclude_files; do
+        [[ "$rel" == "$excluded" ]] && continue 2
+      done
     fi
 
     local dst_file
@@ -473,6 +480,151 @@ install_clare2_corpus_capture() {
   else
     warn "CLARE2 corpus capture scripts installed, but provider hooks need manual setup"
   fi
+}
+
+# merge_json_config <project> <template> <merge_type> <out>
+#   Merges a CLARE-managed .vscode/*.json template into a project's existing
+#   file, writing the result to <out>. <merge_type> selects the jq filter:
+#     settings   - recursive object merge; template values win on key
+#                   conflicts, all other project keys are preserved
+#     extensions - union of .recommendations[], project order first, new
+#                   template entries appended
+#     tasks      - union of .tasks[] by .label; template wins on matching
+#                   labels, project-only labels preserved, new template
+#                   labels appended
+merge_json_config() {
+  local project="$1"
+  local template="$2"
+  local merge_type="$3"
+  local out="$4"
+
+  case "$merge_type" in
+    settings)
+      jq -s '.[0] * .[1]' "$project" "$template" >"$out"
+      ;;
+    extensions)
+      jq -s '
+        .[0].recommendations as $p | .[1].recommendations as $t |
+        {recommendations: ($p + ($t - $p))}
+      ' "$project" "$template" >"$out"
+      ;;
+    tasks)
+      jq -s '
+        .[0] as $p | .[1] as $t |
+        ($p.tasks | map(.label)) as $plabels |
+        ($t.tasks | map(.label)) as $tlabels |
+        ($plabels + ($tlabels - $plabels)) as $order |
+        ($t.tasks | INDEX(.label)) as $tmap |
+        ($p.tasks | INDEX(.label)) as $pmap |
+        {
+          version: $t.version,
+          tasks: [ $order[] | ($tmap[.] // $pmap[.]) ]
+        }
+      ' "$project" "$template" >"$out"
+      ;;
+    *)
+      error "merge_json_config: unknown merge_type: $merge_type"
+      return 1
+      ;;
+  esac
+}
+
+# describe_json_config_changes <project> <template> <merge_type>
+#   Prints a short human-readable summary of what the template would
+#   add/update relative to the project's current file. Empty output means
+#   no changes.
+describe_json_config_changes() {
+  local project="$1"
+  local template="$2"
+  local merge_type="$3"
+
+  case "$merge_type" in
+    settings)
+      jq -n --slurpfile p "$project" --slurpfile t "$template" -r '
+        ($p[0]) as $proj | ($t[0]) as $tmpl |
+        [$tmpl | keys[] | select(($proj[.] // null) != $tmpl[.])] |
+        if length == 0 then empty
+        else "added/updated " + (length | tostring) + " key(s): " + join(", ")
+        end
+      '
+      ;;
+    extensions)
+      jq -n --slurpfile p "$project" --slurpfile t "$template" -r '
+        ($t[0].recommendations - $p[0].recommendations) as $new |
+        if ($new | length) == 0 then empty
+        else "added " + ($new | length | tostring) + " recommendation(s): " + ($new | join(", "))
+        end
+      '
+      ;;
+    tasks)
+      jq -n --slurpfile p "$project" --slurpfile t "$template" -r '
+        ($p[0].tasks | INDEX(.label)) as $pmap |
+        [$t[0].tasks[] | select($pmap[.label] != .) | .label] as $changed |
+        if ($changed | length) == 0 then empty
+        else "added/updated " + ($changed | length | tostring) + " task(s): " + ($changed | join(", "))
+        end
+      '
+      ;;
+  esac
+}
+
+# merge_or_copy_vscode_json <src> <dst> <merge_type>
+#   Project-customizable .vscode/*.json files are merged rather than
+#   overwritten: CLARE template keys/entries are added or updated, and any
+#   project-added content is preserved. Before merging, the target file's
+#   git status is checked - a dirty or untracked file is left untouched so
+#   that a CLARE merge is always cleanly reversible via `git diff`/
+#   `git checkout`.
+merge_or_copy_vscode_json() {
+  local src="$1"
+  local dst="$2"
+  local merge_type="$3"
+  local rel="${dst#"$TARGET_DIR"/}"
+
+  # New file - plain copy, nothing to merge.
+  if [[ ! -e "$dst" ]]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
+      echo "  + $rel (new)"
+      return 0
+    fi
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    return 0
+  fi
+
+  # Identical - nothing to do.
+  if cmp -s "$src" "$dst"; then
+    return 0
+  fi
+
+  local status
+  status="$(git -C "$TARGET_DIR" status --porcelain -- "$rel" 2>/dev/null || true)"
+  if [[ -n "$status" ]]; then
+    local reason="uncommitted changes"
+    [[ "$status" == "??"* ]] && reason="untracked"
+    warn "skipped: $rel ($reason) — commit or stash $rel, then re-run --update to merge CLARE recommendations"
+    return 0
+  fi
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    local summary
+    summary="$(describe_json_config_changes "$dst" "$src" "$merge_type")"
+    if [[ -n "$summary" ]]; then
+      echo "  ~ $rel ($summary)"
+    fi
+    return 0
+  fi
+
+  local summary
+  summary="$(describe_json_config_changes "$dst" "$src" "$merge_type")"
+  [[ -n "$summary" ]] || return 0
+
+  local temporary
+  temporary=$(mktemp)
+  merge_json_config "$dst" "$src" "$merge_type" "$temporary"
+  jq -e . "$temporary" >/dev/null
+  mv "$temporary" "$dst"
+  success "merged: $rel ($summary)"
 }
 
 # prompt_update_file src dst
@@ -1709,6 +1861,11 @@ fi
 ensure_git_repo "$TARGET_DIR" || exit "$EXIT_PREFLIGHT"
 warn_if_repo_dirty_before_install "$TARGET_DIR" || exit "$EXIT_PREFLIGHT"
 
+if ! command -v jq >/dev/null 2>&1; then
+  error "jq is required to merge CLARE-managed .vscode/*.json files"
+  exit "$EXIT_PREFLIGHT"
+fi
+
 is_fresh_install="false"
 has_current_install=false
 has_legacy_install=false
@@ -1749,7 +1906,13 @@ copy_file_update "$SOURCE_ROOT/clare/principles.md" "$TARGET_DIR/clare/principle
 copy_dir_update "$SOURCE_ROOT/install/.github" "$TARGET_DIR/.github" "prompts"
 copy_dir_update "$SOURCE_ROOT/install/.cursor" "$TARGET_DIR/.cursor"
 copy_dir_update "$SOURCE_ROOT/install/.claude" "$TARGET_DIR/.claude"
-copy_dir_update "$SOURCE_ROOT/install/.vscode" "$TARGET_DIR/.vscode"
+# .vscode/{settings,extensions,tasks}.json are team-customizable; merge
+# CLARE's recommended keys/entries instead of overwriting them.
+copy_dir_update "$SOURCE_ROOT/install/.vscode" "$TARGET_DIR/.vscode" "" \
+  "settings.json extensions.json tasks.json"
+merge_or_copy_vscode_json "$SOURCE_ROOT/install/.vscode/settings.json" "$TARGET_DIR/.vscode/settings.json" settings
+merge_or_copy_vscode_json "$SOURCE_ROOT/install/.vscode/extensions.json" "$TARGET_DIR/.vscode/extensions.json" extensions
+merge_or_copy_vscode_json "$SOURCE_ROOT/install/.vscode/tasks.json" "$TARGET_DIR/.vscode/tasks.json" tasks
 copy_file_update "$SOURCE_ROOT/install/root/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
 copy_file_update "$SOURCE_ROOT/install/root/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_file_update "$SOURCE_ROOT/install/root/.cursorrules" "$TARGET_DIR/.cursorrules"

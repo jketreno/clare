@@ -301,6 +301,34 @@ run_corpus_capture_smoke_check() {
   rm -f "$output_file"
 }
 
+run_vscode_merge_smoke_check() {
+  section "VS Code Config Merge"
+
+  local test_script="$PROJECT_ROOT/clare/tests/test_vscode_merge.sh"
+  if [[ ! -f "$test_script" ]]; then
+    info "No .vscode merge smoke test found; skipping"
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    fail ".vscode merge smoke test (jq not installed)"
+    return 1
+  fi
+
+  local output_file
+  if ! output_file="$(mktemp)"; then
+    fail ".vscode merge smoke test (failed to create output file)"
+    return 1
+  fi
+  if bash "$test_script" >"$output_file" 2>&1; then
+    pass ".vscode merge smoke test"
+  else
+    fail ".vscode merge smoke test"
+    cat "$output_file"
+  fi
+  rm -f "$output_file"
+}
+
 run_agent_environment_parity_check() {
   section "Agent Environment Parity"
 
@@ -394,3 +422,5 @@ run_agent_environment_parity_check
 run_env_scan_smoke_check
 
 run_corpus_capture_smoke_check
+
+run_vscode_merge_smoke_check
