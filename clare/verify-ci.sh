@@ -306,6 +306,28 @@ run_selected_tests() {
   done
 }
 
+selected_requests_include_stage() {
+  local wanted_stage="$1"
+  local request stage
+  for request in "${SELECTED_TEST_REQUESTS[@]}"; do
+    stage="${request%%.*}"
+    [[ "$stage" == "$wanted_stage" && "$request" != *.* ]] && return 0
+  done
+  return 1
+}
+
+warn_if_selected_run_is_partial() {
+  if ! $RUN_SELECTED_STAGES; then
+    return 0
+  fi
+
+  warn "Selected stages are a partial verification run; this does not prove deployment parity."
+  if ! selected_requests_include_stage 7; then
+    warn "Stage 7 (Project-Specific Checks) is not included. Deployment/build gates commonly live there."
+  fi
+  warn "Run ./clare/verify-ci.sh with no --run-tests before treating work as complete."
+}
+
 run_check() {
   local name="$1"
   local cmd="$2"
@@ -1810,6 +1832,7 @@ main() {
   else
     info "File scanning excludes untracked files"
   fi
+  warn_if_selected_run_is_partial
 
   if $RUN_SELECTED_STAGES; then
     run_selected_tests

@@ -225,6 +225,158 @@ cat >"$TMPDIR/recommended_extensions.json" <<JSON
 ]
 JSON
 
+# 6) Deployment/readiness surface scan. This is heuristic by design: it helps
+# humans and agents see likely gates that need project-specific CLARE wiring,
+# while enforcement remains in verify-ci.sh / verify-local.sh.
+PROJECT_ROOT="$PROJECT_ROOT" TMPDIR="$TMPDIR" python3 - <<'PYREADINESS'
+import json
+import os
+import re
+from pathlib import Path
+
+root = Path(os.environ['PROJECT_ROOT']).resolve()
+tmp = Path(os.environ['TMPDIR'])
+skip_dirs = {'.git', 'node_modules', 'dist', 'build', '.venv', 'venv', 'vendor', '__pycache__'}
+verify_text = ''
+for rel in ('clare/verify-ci.sh', 'clare/verify-local.sh'):
+    p = root / rel
+    if p.exists():
+        verify_text += '\n' + p.read_text(errors='ignore')
+
+surfaces = []
+seen = set()
+
+def relpath(path):
+    return str(path.relative_to(root))
+
+def add(kind, name, path, command='', reason='', confidence='medium'):
+    key = (kind, name, path, command)
+    if key in seen:
+        return
+    seen.add(key)
+    surfaces.append({
+        'kind': kind,
+        'name': name,
+        'path': path,
+        'command': command,
+        'reason': reason,
+        'confidence': confidence,
+    })
+
+def is_skipped(path):
+    return any(part in skip_dirs for part in path.parts)
+
+for package_json in sorted(root.rglob('package.json')):
+    if is_skipped(package_json.relative_to(root)):
+        continue
+    try:
+        data = json.loads(package_json.read_text())
+    except Exception:
+        data = {}
+    pkg_dir = package_json.parent
+    pkg_rel = relpath(pkg_dir)
+    add('node-package', data.get('name') or pkg_rel or '.', relpath(package_json),
+        f"cd {pkg_rel or '.'} && npm install", 'Node package manifest discovered', 'high')
+    scripts = data.get('scripts') or {}
+    for script_name in sorted(scripts):
+        if re.search(r'(build|lint|type|test|check|ci|deploy|prod|format)', script_name, re.I):
+            add('node-script', script_name, relpath(package_json),
+                f"cd {pkg_rel or '.'} && npm run {script_name}",
+                f"package.json script looks like a verification/deployment gate: {script_name}", 'high')
+
+for makefile in sorted([p for p in root.rglob('Makefile') if not is_skipped(p.relative_to(root))]):
+    lines = makefile.read_text(errors='ignore').splitlines()
+    for line in lines:
+        m = re.match(r'^([A-Za-z0-9_.-]+)\s*:(?![=])', line)
+        if not m:
+            continue
+        target = m.group(1)
+        if target.startswith('.'):
+            continue
+        if re.search(r'(build|front|prod|deploy|release|test|lint|check|ci|verify)', target, re.I):
+            mf_dir = makefile.parent
+            dir_rel = relpath(mf_dir)
+            prefix = f"cd {dir_rel} && " if dir_rel != '.' else ''
+            add('make-target', target, relpath(makefile), f"{prefix}make {target}",
+                f"Make target name looks relevant to build/test/deploy: {target}", 'medium')
+
+for marker in ('pyproject.toml', 'setup.py', 'requirements.txt', 'tox.ini', 'noxfile.py'):
+    for p in sorted(root.rglob(marker)):
+        if is_skipped(p.relative_to(root)):
+            continue
+        add('python-project', marker, relpath(p), '', 'Python project/config file discovered', 'medium')
+
+for p in sorted(root.rglob('go.mod')):
+    if not is_skipped(p.relative_to(root)):
+        d = relpath(p.parent)
+        add('go-module', 'go test/build', relpath(p), f"cd {d} && go test ./...", 'Go module discovered', 'high')
+
+for p in sorted(root.rglob('Cargo.toml')):
+    if not is_skipped(p.relative_to(root)):
+        d = relpath(p.parent)
+        add('rust-crate', 'cargo test/build', relpath(p), f"cd {d} && cargo test", 'Rust crate discovered', 'high')
+
+compose_names = {'docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'}
+for p in sorted([p for p in root.rglob('*') if p.name in compose_names and not is_skipped(p.relative_to(root))]):
+    add('docker-compose', p.name, relpath(p), f"docker compose -f {relpath(p)} config", 'Docker Compose file discovered', 'medium')
+    text = p.read_text(errors='ignore')
+    in_services = False
+    for line in text.splitlines():
+        if re.match(r'^services:\s*$', line):
+            in_services = True
+            continue
+        if in_services and re.match(r'^[A-Za-z0-9_-]+:', line):
+            break
+        m = re.match(r'^  ([A-Za-z0-9_.-]+):\s*$', line)
+        if in_services and m:
+            service = m.group(1)
+            add('docker-compose-service', service, relpath(p), f"docker compose -f {relpath(p)} up -d {service}",
+                f"Docker Compose service discovered: {service}", 'medium')
+
+for p in sorted(root.rglob('Dockerfile*')):
+    if not is_skipped(p.relative_to(root)):
+        add('dockerfile', p.name, relpath(p), f"docker build -f {relpath(p)} .", 'Dockerfile discovered', 'medium')
+
+workflow_dir = root / '.github' / 'workflows'
+if workflow_dir.is_dir():
+    for p in sorted(workflow_dir.glob('*.yml')) + sorted(workflow_dir.glob('*.yaml')):
+        add('github-actions', p.name, relpath(p), '', 'GitHub Actions workflow discovered', 'medium')
+
+verified = []
+gaps = []
+for surface in surfaces:
+    tokens = [surface.get('path', ''), surface.get('command', ''), surface.get('name', '')]
+    covered = any(token and token in verify_text for token in tokens)
+    entry = dict(surface)
+    entry['coverage'] = 'verified' if covered else 'gap'
+    entry['coverageReason'] = 'Referenced by clare/verify-ci.sh or clare/verify-local.sh' if covered else 'No obvious reference in CLARE verification scripts'
+    if covered:
+        verified.append(entry)
+    else:
+        gaps.append(entry)
+
+if gaps:
+    prompt = """Analyze this repository's detected build, lint, test, and deployment surfaces and update CLARE so ./clare/verify-ci.sh catches the gates required before deployment. Use the detected surfaces in CLARE-NEXT.md or clare/scripts/clare-env-scan.sh --json. Update project-owned CLARE files only, such as clare/verify-local.sh, clare/extensions.yml, or clare/autonomy.yml when appropriate. Do not edit CLARE-owned generated files or humans-only paths. Prefer checks that run the same commands used by deployment, including containerized commands when deployment uses containers. After changes, run ./clare/verify-ci.sh once and report PASS/FAIL."""
+else:
+    prompt = """Review this repository's CLARE setup and confirm that ./clare/verify-ci.sh covers the same build, lint, test, and deployment gates used before release. If you find gaps, update project-owned CLARE files only and run ./clare/verify-ci.sh once."""
+
+agent_prompts = [
+    {
+        'name': 'Deployment parity setup',
+        'whenToUse': 'After installing or updating CLARE, especially when coverageGaps is not empty.',
+        'prompt': prompt,
+    }
+]
+
+readiness = {
+    'detectedSurfaces': surfaces,
+    'verifiedSurfaces': verified,
+    'coverageGaps': gaps,
+    'agentPrompts': agent_prompts,
+}
+(tmp / 'readiness.json').write_text(json.dumps(readiness, indent=2) + '\n')
+PYREADINESS
+
 # Write the recommended extensions to <vscode-dir>/extensions.json. Kept in its
 # own function so it runs in both --json and --report modes; otherwise passing
 # --apply-extensions alongside --json would be a silent no-op.
@@ -270,7 +422,12 @@ if os.path.exists(verify_path):
     except Exception:
       pass
 recommended=json.load(open(os.path.join(tmp,'recommended_extensions.json')))
-out={'fileCounts': fileCounts, 'configsFound': configs, 'verifyTools': verifyTools, 'recommendedExtensions': recommended}
+readiness_path=os.path.join(tmp,'readiness.json')
+readiness={'detectedSurfaces': [], 'verifiedSurfaces': [], 'coverageGaps': [], 'agentPrompts': []}
+if os.path.exists(readiness_path):
+  with open(readiness_path) as f:
+    readiness=json.load(f)
+out={'fileCounts': fileCounts, 'configsFound': configs, 'verifyTools': verifyTools, 'recommendedExtensions': recommended, **readiness}
 print(json.dumps(out, indent=2))
 PY
   exit 0
@@ -309,6 +466,34 @@ PY
 else
   echo "No tools referenced in clare/verify-*.sh found."
 fi
+
+echo ""
+echo "CLARE readiness surfaces:"
+TMPDIR="$TMPDIR" python3 - <<'PY'
+import json, os
+path=os.path.join(os.environ['TMPDIR'],'readiness.json')
+readiness=json.load(open(path)) if os.path.exists(path) else {'detectedSurfaces': [], 'coverageGaps': []}
+print(f"  detected: {len(readiness.get('detectedSurfaces', []))}")
+print(f"  likely gaps: {len(readiness.get('coverageGaps', []))}")
+for item in readiness.get('coverageGaps', [])[:8]:
+  cmd=f" -> {item.get('command')}" if item.get('command') else ''
+  print(f"  - [{item.get('kind')}] {item.get('name')} ({item.get('path')}){cmd}")
+if len(readiness.get('coverageGaps', [])) > 8:
+  print(f"  ... {len(readiness.get('coverageGaps', [])) - 8} more")
+PY
+
+echo ""
+echo "Agent prompt:"
+TMPDIR="$TMPDIR" python3 - <<'PY'
+import json, os
+path=os.path.join(os.environ['TMPDIR'],'readiness.json')
+readiness=json.load(open(path)) if os.path.exists(path) else {'agentPrompts': []}
+prompts=readiness.get('agentPrompts') or []
+if prompts:
+  print('  ' + prompts[0]['prompt'])
+else:
+  print('  No agent prompt generated.')
+PY
 
 echo ""
 echo "Recommended VS Code extensions:"

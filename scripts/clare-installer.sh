@@ -55,6 +55,7 @@ readonly CLARE_RELATED_PATHS=(
   "AGENTS.md"
   ".cursorrules"
   ".gitignore"
+  "CLARE-NEXT.md"
 )
 
 if [[ -t 0 && -t 1 ]]; then
@@ -1707,9 +1708,181 @@ setup_step_extensions() {
   setup_enable_selected_extensions "$extensions_file" "$selection"
 }
 
+CLARE_NEXT_STATUS="skipped"
+
+write_clare_next_file() {
+  local setup_target="$1"
+  local setup_source_root="$2"
+  local project_name="$3"
+  local next_path="$setup_target/CLARE-NEXT.md"
+  local scanner="$setup_source_root/install/clare/scripts/clare-env-scan.sh"
+  local scan_file
+  scan_file="$(mktemp)"
+
+  if [[ -f "$scanner" ]]; then
+    if ! (cd "$setup_target" && bash "$scanner" --json >"$scan_file"); then
+      warn "Could not run CLARE readiness scanner; writing a minimal CLARE-NEXT.md"
+      printf '%s\n' '{"detectedSurfaces":[],"verifiedSurfaces":[],"coverageGaps":[],"agentPrompts":[]}' >"$scan_file"
+    fi
+  else
+    warn "CLARE readiness scanner not found; writing a minimal CLARE-NEXT.md"
+    printf '%s\n' '{"detectedSurfaces":[],"verifiedSurfaces":[],"coverageGaps":[],"agentPrompts":[]}' >"$scan_file"
+  fi
+
+  NEXT_PATH="$next_path" SCAN_FILE="$scan_file" PROJECT_NAME="$project_name" INSTALLED_SKILLS="$SETUP_INSTALLED_SKILLS" python3 - <<'PYNEXT'
+import json
+import os
+from pathlib import Path
+
+begin = '<!-- CLARE-NEXT:BEGIN -->'
+end = '<!-- CLARE-NEXT:END -->'
+path = Path(os.environ['NEXT_PATH'])
+project = os.environ.get('PROJECT_NAME') or path.parent.name
+installed_skills = os.environ.get('INSTALLED_SKILLS', '').strip()
+scan_path = Path(os.environ['SCAN_FILE'])
+try:
+    scan = json.loads(scan_path.read_text())
+except Exception:
+    scan = {'detectedSurfaces': [], 'verifiedSurfaces': [], 'coverageGaps': [], 'agentPrompts': []}
+
+def surface_line(item):
+    kind = item.get('kind') or 'surface'
+    name = item.get('name') or '(unnamed)'
+    rel = item.get('path') or '(unknown path)'
+    cmd = item.get('command') or ''
+    line = f"- `{kind}`: **{name}** in `{rel}`"
+    if cmd:
+        line += f" -> `{cmd}`"
+    return line
+
+detected = scan.get('detectedSurfaces') or []
+gaps = scan.get('coverageGaps') or []
+verified = scan.get('verifiedSurfaces') or []
+prompts = scan.get('agentPrompts') or []
+deploy_prompt = prompts[0].get('prompt') if prompts else 'Ask your agent to inspect this repository and wire project-specific checks into CLARE so ./clare/verify-ci.sh matches your deployment gates.'
+autonomy_prompt = """Analyze this repository and create clare/autonomy.yml for CLARE. Include module boundaries with path, level (full-autonomy/supervised/humans-only), and reason for each entry, ending with a wildcard default. Also add 3-8 sources_of_truth entries. Then validate the YAML and show the proposed file content."""
+
+content = []
+content.append('# CLARE Next Steps')
+content.append('')
+content.append(begin)
+content.append('')
+content.append(f'Generated for **{project}**. This file is a short checklist for finishing CLARE setup with your agent. You can edit or delete it after setup.')
+content.append('')
+content.append('## 1. Review What CLARE Found')
+content.append('')
+if detected:
+    for item in detected[:20]:
+        content.append(surface_line(item))
+    if len(detected) > 20:
+        content.append(f'- ... {len(detected) - 20} more detected surfaces. Run `bash clare/scripts/clare-env-scan.sh --json` for the full report if that helper is installed.')
+else:
+    content.append('- No common build/test/deploy surfaces were detected by the readiness scanner.')
+content.append('')
+content.append('## 2. Close Coverage Gaps')
+content.append('')
+if gaps:
+    content.append('These likely gates are not obviously covered by `clare/verify-ci.sh` or `clare/verify-local.sh`:')
+    content.append('')
+    for item in gaps[:12]:
+        content.append(surface_line(item))
+    if len(gaps) > 12:
+        content.append(f'- ... {len(gaps) - 12} more likely gaps.')
+else:
+    content.append('- No obvious deployment parity gaps were found. Ask your agent to confirm before trusting automation fully.')
+if verified:
+    content.append('')
+    content.append(f'Already referenced by CLARE verification: {len(verified)} surface(s).')
+content.append('')
+content.append('## 3. Copy/Paste Agent Prompts')
+content.append('')
+content.append('### Deployment parity')
+content.append('')
+content.append('```text')
+content.append(deploy_prompt)
+content.append('```')
+content.append('')
+content.append('### Autonomy boundaries')
+content.append('')
+content.append('```text')
+content.append(autonomy_prompt)
+content.append('```')
+content.append('')
+content.append('## 4. Run Verification')
+content.append('')
+content.append('After the agent updates project-owned CLARE files, run:')
+content.append('')
+content.append('```bash')
+content.append('./clare/verify-ci.sh')
+content.append('```')
+if installed_skills:
+    content.append('')
+    content.append(f'Installed skills this run: `{installed_skills}`')
+content.append('')
+content.append(end)
+content.append('')
+content.append('## Your Notes')
+content.append('')
+content.append('Add project-specific notes below this line. Future installer runs preserve text outside the generated CLARE-NEXT block.')
+content.append('')
+new_block = '\n'.join(content).rstrip() + '\n'
+
+generated_section = new_block[new_block.index(begin):new_block.index(end) + len(end)] + '\n'
+
+if path.exists():
+    old = path.read_text()
+    if begin in old and end in old:
+        before = old.split(begin, 1)[0]
+        after = old.split(end, 1)[1]
+        path.write_text(before.rstrip() + '\n\n' + generated_section + after)
+    else:
+        path.write_text(new_block + '\n---\n\n' + old)
+else:
+    path.write_text(new_block)
+PYNEXT
+  rm -f "$scan_file"
+  CLARE_NEXT_STATUS="created"
+}
+
+setup_maybe_create_clare_next() {
+  local setup_target="$1"
+  local setup_source_root="$2"
+  local project_name="$3"
+
+  CLARE_NEXT_STATUS="skipped"
+  if [[ "$YES" == "true" ]]; then
+    write_clare_next_file "$setup_target" "$setup_source_root" "$project_name"
+    success "Created CLARE-NEXT.md"
+    return 0
+  fi
+
+  if [[ "$HAS_TTY" == "true" ]]; then
+    if ask_yn "Create CLARE-NEXT.md with your personalized CLARE checklist and agent prompts? (recommended)" "y"; then
+      write_clare_next_file "$setup_target" "$setup_source_root" "$project_name"
+      success "Created CLARE-NEXT.md"
+    else
+      info "Skipped CLARE-NEXT.md creation"
+    fi
+    return 0
+  fi
+
+  info "Non-interactive setup without --yes: not creating CLARE-NEXT.md. Run setup again interactively, or run bash install/clare/scripts/clare-env-scan.sh --report from the CLARE source tree for guidance."
+}
+
 setup_print_next_steps() {
   echo ""
   echo "Next steps:"
+
+  if [[ "$CLARE_NEXT_STATUS" == "created" ]]; then
+    echo "1. Open CLARE-NEXT.md for your personalized checklist and copy/paste agent prompts."
+    echo "2. Use your agent to close any deployment coverage gaps it lists."
+    echo "3. Run ./clare/verify-ci.sh in your project."
+    return 0
+  fi
+
+  echo "CLARE-NEXT.md was not created, so these prompts are printed here only."
+  echo "Run setup again interactively or with --yes when you want the durable checklist."
+  echo ""
 
   if [[ " $SETUP_INSTALLED_SKILLS " == *" autonomy-bootstrap "* ]]; then
     echo "1. Open your AI assistant (Cursor, Copilot Chat, Claude, etc.)."
@@ -1774,6 +1947,8 @@ run_setup_flow() {
 
   setup_step_install_skills "$skills_dir" "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$setup_target"
   setup_step_extensions "$extensions_file" "$latest_extensions_file" "$setup_target"
+
+  setup_maybe_create_clare_next "$setup_target" "$setup_source_root" "$project_name"
 
   header "Setup Complete"
   success "CLARE is configured for: $project_name"

@@ -301,6 +301,29 @@ run_corpus_capture_smoke_check() {
   rm -f "$output_file"
 }
 
+run_clare_next_smoke_check() {
+  section "CLARE-NEXT Installer Guidance"
+
+  local test_script="$PROJECT_ROOT/clare/tests/test_clare_next.sh"
+  if [[ ! -f "$test_script" ]]; then
+    info "No CLARE-NEXT installer test found; skipping"
+    return 0
+  fi
+
+  local output_file
+  if ! output_file="$(mktemp)"; then
+    fail "CLARE-NEXT installer test (failed to create output file)"
+    return 1
+  fi
+  if bash "$test_script" >"$output_file" 2>&1; then
+    pass "CLARE-NEXT installer test"
+  else
+    fail "CLARE-NEXT installer test"
+    cat "$output_file"
+  fi
+  rm -f "$output_file"
+}
+
 run_vscode_merge_smoke_check() {
   section "VS Code Config Merge"
 
@@ -422,5 +445,7 @@ run_agent_environment_parity_check
 run_env_scan_smoke_check
 
 run_corpus_capture_smoke_check
+
+run_clare_next_smoke_check
 
 run_vscode_merge_smoke_check

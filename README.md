@@ -55,6 +55,8 @@ and guide you to run the `autonomy-bootstrap` skill from your AI assistant
 (Cursor, Copilot Chat, Claude, Codex, etc.) to generate project-specific boundaries and sources of truth.
 Manual prompts for boundaries/concepts are still available as a fallback.
 
+During setup, CLARE also offers to create a root-level `CLARE-NEXT.md` checklist. This is recommended but opt-in: it summarizes likely build/test/deploy surfaces, calls out checks that are not yet wired into CLARE, and gives copy/paste prompts for your agent. In non-interactive setup without `--yes`, CLARE does not create this file so it will not dirty your repository unexpectedly.
+
 ### 2 — See it work
 
 ```bash
@@ -162,6 +164,7 @@ clare/
   examples/             — Domain-specific examples (available separately)
   docs/                 — Agentic workflows & MCP integration guide
 
+CLARE-NEXT.md         — Optional generated checklist with agent prompts (created only when approved)
 AGENTS.md              — Codex config (auto-read at session start)
 CLAUDE.md              — Claude Code config (auto-read at session start)
 .github/               — GitHub Copilot instruction files
@@ -179,7 +182,7 @@ Domain-specific examples (API endpoint skills, type-sync tests, etc.) are availa
 
 ### env-scan skill & Dockerfile.clare
 
-Installing the `clare-env-setup` skill (during setup, or via `--install-skill`) also installs an `env-scan` helper into your project at `clare/scripts/clare-env-scan.sh`. It inspects your repository for common files, extracts tools referenced by `clare/verify-*.sh`, and recommends VS Code extensions. A companion image, `install/Dockerfile.clare` (shipped in the CLARE payload under `install/`; copy it into your project), provides a minimal environment to run `./clare/verify-ci.sh --fast` and installs the Go toolchain by default (override with `--build-arg GO_VERSION=`).
+Installing the `clare-env-setup` skill (during setup, or via `--install-skill`) also installs an `env-scan` helper into your project at `clare/scripts/clare-env-scan.sh`. It inspects your repository for common files, extracts tools referenced by `clare/verify-*.sh`, recommends VS Code extensions, and reports CLARE readiness surfaces (`detectedSurfaces`, `verifiedSurfaces`, `coverageGaps`, and `agentPrompts`). A companion image, `install/Dockerfile.clare` (shipped in the CLARE payload under `install/`; copy it into your project), provides a minimal environment to run `./clare/verify-ci.sh --fast` and installs the Go toolchain by default (override with `--build-arg GO_VERSION=`).
 
 ---
 
