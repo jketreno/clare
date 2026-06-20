@@ -35,7 +35,7 @@ else
   root=$(corpus_root)
   [[ -n "$root" ]] || exit 0
   day=$(date -u +%Y/%m/%d)
-  session_file="${root}/sessions/${day}/${SOURCE}-${safe_session_id}.jsonl"
+  session_file="${root}/sessions/${project}/${day}/${SOURCE}-${safe_session_id}.jsonl"
 fi
 
 timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)

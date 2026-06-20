@@ -17,9 +17,9 @@ project: "your-project"
 modules:
   # Keep high-risk paths humans-only. Typical candidates include authentication,
   # payment flows, compliance/legal logic, and security-critical infrastructure.
-  - path: "clare/verify-ci.sh"
+  - path: "clare"
     level: humans-only
-    reason: "CLARE-owned enforcement script; modify intentionally with human review"
+    reason: "CLARE-owned infrastructure; all changes require human review"
 
   - path: "clare/verify-local.sh"
     level: supervised

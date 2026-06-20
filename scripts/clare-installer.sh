@@ -455,7 +455,7 @@ ensure_clare2_autonomy_boundaries() {
   local autonomy_rel="${autonomy_file#"$target_dir"/}"
   local temporary
 
-  [[ -d "$target_dir/clare2" && -f "$autonomy_file" ]] || return 0
+  [[ -f "$autonomy_file" ]] || return 0
 
   if git -C "$target_dir" ls-files --error-unmatch "$autonomy_rel" \
     >/dev/null 2>&1 \
@@ -480,6 +480,12 @@ ensure_clare2_autonomy_boundaries() {
     function emit_boundaries() {
       if (emitted) {
         return
+      }
+      if (!seen_clare) {
+        print "  - path: \"clare\""
+        print "    level: humans-only"
+        print "    reason: \"CLARE-owned infrastructure; all changes require human review\""
+        print ""
       }
       if (!seen_clare2) {
         print "  - path: \"clare2\""
@@ -506,6 +512,7 @@ ensure_clare2_autonomy_boundaries() {
         path = $0
         sub(/^[[:space:]]*-[[:space:]]*path:[[:space:]]*/, "", path)
         path = unquote(path)
+        if (path == "clare") seen_clare = 1
         if (path == "clare2") seen_clare2 = 1
         if (path == "clare2/templates/hooks") seen_hooks = 1
         if (path == "clare2/scripts/clare2-install-hooks.sh") seen_installer = 1
@@ -547,6 +554,7 @@ install_clare2_corpus_capture() {
     else
       info "Dry run: would install clare/scripts/clare2-{capture-event,install-hooks}.sh and run hook installer"
     fi
+    info "Dry run: would set CLARE2_CORPUS_ROOT in ~/.bashrc and link ${target_dir}/corpus → ~/.config/clare/corpus"
     return 0
   fi
 
@@ -583,6 +591,50 @@ install_clare2_corpus_capture() {
     success "Installed CLARE2 corpus capture scripts and provider hooks"
   else
     warn "CLARE2 corpus capture scripts installed, but provider hooks need manual setup"
+  fi
+
+  _install_corpus_root "$target_dir"
+}
+
+# _install_corpus_root <target_dir>
+#   Ensures ~/.config/clare/corpus exists, writes CLARE2_CORPUS_ROOT to the
+#   user's shell profile (if not already present), and symlinks target_dir/corpus
+#   → ~/.config/clare/corpus so the pipeline container's bind-mount continues
+#   to resolve to the shared user corpus.
+_install_corpus_root() {
+  local target_dir="$1"
+  local corpus_root="${HOME}/.config/clare/corpus"
+  local corpus_line="export CLARE2_CORPUS_ROOT=\"\${HOME}/.config/clare/corpus\""
+
+  mkdir -p "$corpus_root"
+
+  # Write CLARE2_CORPUS_ROOT to shell profiles (idempotent)
+  local added_to=()
+  for rc in "${HOME}/.bashrc" "${HOME}/.zshrc"; do
+    [[ -f "$rc" ]] || continue
+    grep -qF 'CLARE2_CORPUS_ROOT' "$rc" && continue
+    printf '\n# CLARE2 corpus root (set by clare-installer)\n%s\n' "$corpus_line" >>"$rc"
+    added_to+=("$rc")
+  done
+  if [[ ${#added_to[@]} -gt 0 ]]; then
+    info "Added CLARE2_CORPUS_ROOT to: ${added_to[*]}"
+    info "Run: source ${added_to[0]}  (or open a new terminal)"
+  fi
+
+  # Symlink target_dir/corpus → shared user corpus so the pipeline container
+  # reads from the same location without needing a docker-compose change.
+  local target_corpus="$target_dir/corpus"
+  if [[ -L "$target_corpus" ]]; then
+    : # already a symlink — leave it
+  elif [[ -d "$target_corpus" ]]; then
+    # Real directory: migrate contents then replace with symlink
+    if [[ "$(find "$target_corpus" -mindepth 1 -not -name '.gitignore' -not -name '.gitkeep' 2>/dev/null | head -1)" == "" ]]; then
+      rm -rf "$target_corpus"
+      ln -s "$corpus_root" "$target_corpus"
+      info "Linked $target_corpus → $corpus_root"
+    else
+      warn "$target_corpus is a non-empty directory; skipping symlink. Move its contents to $corpus_root manually, then: rm -rf \"$target_corpus\" && ln -s \"$corpus_root\" \"$target_corpus\""
+    fi
   fi
 }
 
