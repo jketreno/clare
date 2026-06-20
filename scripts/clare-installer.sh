@@ -423,6 +423,27 @@ copy_file_if_missing() {
   fi
 }
 
+ensure_gitignore_entry() {
+  local gitignore_file="$1"
+  local entry="$2"
+  local label="$3"
+
+  mkdir -p "$(dirname "$gitignore_file")"
+  touch "$gitignore_file"
+
+  if grep -Fxq "$entry" "$gitignore_file"; then
+    return 0
+  fi
+
+  {
+    if [[ -s "$gitignore_file" ]]; then
+      printf '\n'
+    fi
+    printf '# %s\n' "$label"
+    printf '%s\n' "$entry"
+  } >>"$gitignore_file"
+}
+
 copy_dir_update() {
   local src_dir="$1"
   local dst_dir="$2"
@@ -2261,6 +2282,7 @@ copy_file_if_missing "$SOURCE_ROOT/install/clare/autonomy.yml" "$TARGET_DIR/clar
 ensure_clare2_autonomy_boundaries "$TARGET_DIR"
 copy_file_if_missing "$SOURCE_ROOT/clare/extensions.yml" "$TARGET_DIR/clare/extensions.yml"
 copy_file_if_missing "$SOURCE_ROOT/install/root/.gitignore" "$TARGET_DIR/.gitignore"
+ensure_gitignore_entry "$TARGET_DIR/.gitignore" "CLARE-NEXT.md" "CLARE generated onboarding checklist (local/ephemeral)"
 
 if [[ "$is_fresh_install" != "true" ]]; then
   update_installed_extensions "$TARGET_DIR/clare/extensions.yml" "$SOURCE_ROOT/clare/extensions.yml" "$TARGET_DIR"

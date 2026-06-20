@@ -30,9 +30,28 @@ test_yes_creates_clare_next() {
   "$INSTALLER" --target "$project" --yes >/dev/null
 
   [[ -f "$project/CLARE-NEXT.md" ]]
+  git -C "$project" check-ignore -q CLARE-NEXT.md
   grep -q '<!-- CLARE-NEXT:BEGIN -->' "$project/CLARE-NEXT.md"
   grep -q 'Deployment parity' "$project/CLARE-NEXT.md"
   grep -q 'frontend/package.json' "$project/CLARE-NEXT.md"
+}
+
+test_existing_gitignore_gets_clare_next_entry() {
+  local project="$TEMP/existing-gitignore"
+  new_empty_project "$project"
+  printf '%s\n' '*.local' >"$project/.gitignore"
+  git -C "$project" -c user.email=test@example.com -c user.name=test add .gitignore
+  git -C "$project" -c user.email=test@example.com -c user.name=test commit -qm gitignore
+
+  "$INSTALLER" --target "$project" --yes >/dev/null
+
+  grep -q '^CLARE-NEXT\.md$' "$project/.gitignore"
+  git -C "$project" check-ignore -q CLARE-NEXT.md
+  [[ "$(grep -c '^CLARE-NEXT\.md$' "$project/.gitignore")" -eq 1 ]]
+
+  "$INSTALLER" --setup-only --target "$project" --yes >/dev/null
+
+  [[ "$(grep -c '^CLARE-NEXT\.md$' "$project/.gitignore")" -eq 1 ]]
 }
 
 test_existing_notes_are_preserved() {
@@ -48,5 +67,6 @@ test_existing_notes_are_preserved() {
 
 test_noninteractive_without_yes_skips_clare_next
 test_yes_creates_clare_next
+test_existing_gitignore_gets_clare_next_entry
 test_existing_notes_are_preserved
 echo "CLARE-NEXT installer tests passed"

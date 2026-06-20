@@ -55,7 +55,7 @@ and guide you to run the `autonomy-bootstrap` skill from your AI assistant
 (Cursor, Copilot Chat, Claude, Codex, etc.) to generate project-specific boundaries and sources of truth.
 Manual prompts for boundaries/concepts are still available as a fallback.
 
-During setup, CLARE also offers to create a root-level `CLARE-NEXT.md` checklist. This is recommended but opt-in: it summarizes likely build/test/deploy surfaces, calls out checks that are not yet wired into CLARE, and gives copy/paste prompts for your agent. In non-interactive setup without `--yes`, CLARE does not create this file so it will not dirty your repository unexpectedly.
+During setup, CLARE also offers to create a root-level `CLARE-NEXT.md` checklist. This is recommended but opt-in: it summarizes likely build/test/deploy surfaces, calls out checks that are not yet wired into CLARE, and gives copy/paste prompts for your agent. The installer adds `CLARE-NEXT.md` to `.gitignore` because it is local, ephemeral guidance. In non-interactive setup without `--yes`, CLARE does not create this file so it will not dirty your repository unexpectedly.
 
 ### 2 — See it work
 
@@ -164,7 +164,7 @@ clare/
   examples/             — Domain-specific examples (available separately)
   docs/                 — Agentic workflows & MCP integration guide
 
-CLARE-NEXT.md         — Optional generated checklist with agent prompts (created only when approved)
+CLARE-NEXT.md         — Optional ignored local checklist with agent prompts (created only when approved)
 AGENTS.md              — Codex config (auto-read at session start)
 CLAUDE.md              — Claude Code config (auto-read at session start)
 .github/               — GitHub Copilot instruction files

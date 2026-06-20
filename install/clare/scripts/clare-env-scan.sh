@@ -66,9 +66,12 @@ cd "$PROJECT_ROOT"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-# 1) File counts by extension
+# 1) File counts by extension. Prefer git's tracked + non-ignored
+# untracked file list so runtime data, caches, and dependency trees do not make
+# setup feel hung on established projects.
 declare -A counts
-while IFS= read -r -d '' f; do
+count_file() {
+  local f="$1" base ext
   base="$(basename "$f")"
   if [[ "$base" != *.* ]]; then
     ext="no_extension"
@@ -76,12 +79,22 @@ while IFS= read -r -d '' f; do
     ext=".${base##*.}"
   fi
   counts["$ext"]=$((${counts["$ext"]:-0} + 1))
-  # Prune vendored/build directories so file counts characterize the project
-  # itself, not its dependencies (e.g. node_modules can dwarf real source files).
-done < <(find . \
-  \( -path './.git' -o -path './node_modules' -o -path './dist' \
-  -o -path './build' -o -path './.venv' -o -path './venv' -o -path './vendor' \) -prune \
-  -o -type f -print0)
+}
+
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  while IFS= read -r -d '' f; do
+    [[ -n "$f" ]] && count_file "$f"
+  done < <(git ls-files -co --exclude-standard -z)
+else
+  while IFS= read -r -d '' f; do
+    count_file "$f"
+  done < <(find . \
+    \( -name '.git' -o -name 'node_modules' -o -name 'dist' -o -name 'build' \
+    -o -name '.venv' -o -name 'venv' -o -name 'vendor' -o -name 'cache' \
+    -o -name 'sessions' -o -name 'sessions-prod' -o -name 'users' \
+    -o -name 'users-prod' -o -name 'playwright-report' -o -name 'test-results' \) -prune \
+    -o -type f -print0)
+fi
 
 # Write counts to temp file for JSON stage
 echo "{" >"$TMPDIR/fileCounts.json"
@@ -237,6 +250,49 @@ from pathlib import Path
 root = Path(os.environ['PROJECT_ROOT']).resolve()
 tmp = Path(os.environ['TMPDIR'])
 skip_dirs = {'.git', 'node_modules', 'dist', 'build', '.venv', 'venv', 'vendor', '__pycache__'}
+
+def list_project_files():
+    git_dir = root / '.git'
+    if git_dir.exists():
+        import subprocess
+        try:
+            result = subprocess.run(
+                ['git', '-C', str(root), 'ls-files', '-co', '--exclude-standard', '-z'],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+            paths = []
+            for raw in result.stdout.split(b'\0'):
+                if not raw:
+                    continue
+                rel = Path(raw.decode())
+                if any(part in skip_dirs for part in rel.parts):
+                    continue
+                abs_path = root / rel
+                if abs_path.is_file():
+                    paths.append(abs_path)
+            return paths
+        except Exception:
+            pass
+
+    paths = []
+    fallback_skip_dirs = skip_dirs | {
+        '.agents', '.codex', '.complexipy_cache', '.pytest_cache', '.ruff_cache',
+        'cache', 'chromadb', 'chromadb-prod', 'docs-prod', 'playwright-report',
+        'sessions', 'sessions-prod', 'test-results', 'users', 'users-prod',
+    }
+    for current, dirnames, filenames in os.walk(root):
+        dirnames[:] = [name for name in dirnames if name not in fallback_skip_dirs]
+        current_path = Path(current)
+        for filename in filenames:
+            paths.append(current_path / filename)
+    return paths
+
+project_files = list_project_files()
+
+def iter_project_files(predicate):
+    return sorted((path for path in project_files if predicate(path.name)), key=lambda path: relpath(path))
 verify_text = ''
 for rel in ('clare/verify-ci.sh', 'clare/verify-local.sh'):
     p = root / rel
@@ -266,9 +322,7 @@ def add(kind, name, path, command='', reason='', confidence='medium'):
 def is_skipped(path):
     return any(part in skip_dirs for part in path.parts)
 
-for package_json in sorted(root.rglob('package.json')):
-    if is_skipped(package_json.relative_to(root)):
-        continue
+for package_json in iter_project_files(lambda name: name == 'package.json'):
     try:
         data = json.loads(package_json.read_text())
     except Exception:
@@ -284,7 +338,7 @@ for package_json in sorted(root.rglob('package.json')):
                 f"cd {pkg_rel or '.'} && npm run {script_name}",
                 f"package.json script looks like a verification/deployment gate: {script_name}", 'high')
 
-for makefile in sorted([p for p in root.rglob('Makefile') if not is_skipped(p.relative_to(root))]):
+for makefile in iter_project_files(lambda name: name == 'Makefile'):
     lines = makefile.read_text(errors='ignore').splitlines()
     for line in lines:
         m = re.match(r'^([A-Za-z0-9_.-]+)\s*:(?![=])', line)
@@ -301,23 +355,19 @@ for makefile in sorted([p for p in root.rglob('Makefile') if not is_skipped(p.re
                 f"Make target name looks relevant to build/test/deploy: {target}", 'medium')
 
 for marker in ('pyproject.toml', 'setup.py', 'requirements.txt', 'tox.ini', 'noxfile.py'):
-    for p in sorted(root.rglob(marker)):
-        if is_skipped(p.relative_to(root)):
-            continue
+    for p in iter_project_files(lambda name, marker=marker: name == marker):
         add('python-project', marker, relpath(p), '', 'Python project/config file discovered', 'medium')
 
-for p in sorted(root.rglob('go.mod')):
-    if not is_skipped(p.relative_to(root)):
-        d = relpath(p.parent)
-        add('go-module', 'go test/build', relpath(p), f"cd {d} && go test ./...", 'Go module discovered', 'high')
+for p in iter_project_files(lambda name: name == 'go.mod'):
+    d = relpath(p.parent)
+    add('go-module', 'go test/build', relpath(p), f"cd {d} && go test ./...", 'Go module discovered', 'high')
 
-for p in sorted(root.rglob('Cargo.toml')):
-    if not is_skipped(p.relative_to(root)):
-        d = relpath(p.parent)
-        add('rust-crate', 'cargo test/build', relpath(p), f"cd {d} && cargo test", 'Rust crate discovered', 'high')
+for p in iter_project_files(lambda name: name == 'Cargo.toml'):
+    d = relpath(p.parent)
+    add('rust-crate', 'cargo test/build', relpath(p), f"cd {d} && cargo test", 'Rust crate discovered', 'high')
 
 compose_names = {'docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'}
-for p in sorted([p for p in root.rglob('*') if p.name in compose_names and not is_skipped(p.relative_to(root))]):
+for p in iter_project_files(lambda name: name in compose_names):
     add('docker-compose', p.name, relpath(p), f"docker compose -f {relpath(p)} config", 'Docker Compose file discovered', 'medium')
     text = p.read_text(errors='ignore')
     in_services = False
@@ -333,9 +383,8 @@ for p in sorted([p for p in root.rglob('*') if p.name in compose_names and not i
             add('docker-compose-service', service, relpath(p), f"docker compose -f {relpath(p)} up -d {service}",
                 f"Docker Compose service discovered: {service}", 'medium')
 
-for p in sorted(root.rglob('Dockerfile*')):
-    if not is_skipped(p.relative_to(root)):
-        add('dockerfile', p.name, relpath(p), f"docker build -f {relpath(p)} .", 'Dockerfile discovered', 'medium')
+for p in iter_project_files(lambda name: name.startswith('Dockerfile')):
+    add('dockerfile', p.name, relpath(p), f"docker build -f {relpath(p)} .", 'Dockerfile discovered', 'medium')
 
 workflow_dir = root / '.github' / 'workflows'
 if workflow_dir.is_dir():

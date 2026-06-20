@@ -49,6 +49,9 @@ Thumbs.db
 # CLARE local overrides (users may create these without committing them)
 clare/local-overrides.yml
 
+# CLARE generated onboarding checklist (local/ephemeral)
+CLARE-NEXT.md
+
 # Logs
 *.log
 npm-debug.log*
