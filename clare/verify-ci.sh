@@ -935,28 +935,38 @@ run_node_lint_checks() {
   fi
 }
 
-# _python_cmd_prefix returns a shell prefix that prepends the detected venv bin
+# python_cmd_prefix returns a shell prefix that prepends the detected venv bin
 # directory to PATH, so commands like ruff/pytest resolve from the venv first.
 # Falls back to the identity (no prefix) when no venv is detected.
-_python_cmd_prefix() {
+python_cmd_prefix() {
   if [[ -n "$PYTHON_VENV_BIN" ]]; then
-    echo "PATH='$PYTHON_VENV_BIN:\$PATH' "
+    printf 'PATH=%q ' "$PYTHON_VENV_BIN:$PATH"
   fi
+}
+
+python_tool_available() {
+  local tool="$1"
+
+  if [[ -n "$PYTHON_VENV_BIN" && -x "$PYTHON_VENV_BIN/$tool" ]]; then
+    return 0
+  fi
+
+  command -v "$tool" &>/dev/null
 }
 
 run_python_lint_checks() {
   local prefix
-  prefix="$(_python_cmd_prefix)"
-  if command -v ruff &>/dev/null; then
+  prefix="$(python_cmd_prefix)"
+  if python_tool_available ruff; then
     local fix_flag=""
     $FIX_MODE && fix_flag="--fix"
-    run_check "Ruff" "cd '$PROJECT_ROOT' && $prefix ruff check $fix_flag . 2>&1" || true
-  elif command -v flake8 &>/dev/null; then
-    run_check "Flake8" "cd '$PROJECT_ROOT' && $prefix flake8 . 2>&1" || true
+    run_check "Ruff" "cd '$PROJECT_ROOT' && ${prefix}ruff check $fix_flag . 2>&1" || true
+  elif python_tool_available flake8; then
+    run_check "Flake8" "cd '$PROJECT_ROOT' && ${prefix}flake8 . 2>&1" || true
   fi
 
-  if command -v mypy &>/dev/null; then
-    run_check "Mypy" "cd '$PROJECT_ROOT' && $prefix mypy . 2>&1" || true
+  if python_tool_available mypy; then
+    run_check "Mypy" "cd '$PROJECT_ROOT' && ${prefix}mypy . 2>&1" || true
   fi
 }
 
@@ -1036,9 +1046,9 @@ check_build_node() {
 check_build_python() {
   if $HAS_PYTHON; then
     local prefix
-    prefix="$(_python_cmd_prefix)"
+    prefix="$(python_cmd_prefix)"
     if [[ -n "$PYTHON_CMD" ]]; then
-      run_check "Python syntax check" "$prefix $PYTHON_CMD -m compileall '$PROJECT_ROOT' -q 2>&1 | head -20" || true
+      run_check "Python syntax check" "${prefix}$PYTHON_CMD -m compileall '$PROJECT_ROOT' -q 2>&1 | head -20" || true
     else
       warn "Python project detected but no Python interpreter found; skipping syntax check"
     fi
@@ -1118,9 +1128,9 @@ check_tests_node() {
 check_tests_python() {
   if $HAS_PYTHON; then
     local prefix
-    prefix="$(_python_cmd_prefix)"
-    if command -v pytest &>/dev/null; then
-      run_check "pytest" "cd '$PROJECT_ROOT' && $prefix pytest --tb=short -q 2>&1" || true
+    prefix="$(python_cmd_prefix)"
+    if python_tool_available pytest; then
+      run_check "pytest" "cd '$PROJECT_ROOT' && ${prefix}pytest --tb=short -q 2>&1" || true
     fi
   fi
 }
@@ -1167,9 +1177,9 @@ check_architecture_python() {
 
   if $HAS_PYTHON; then
     local prefix
-    prefix="$(_python_cmd_prefix)"
+    prefix="$(python_cmd_prefix)"
     if [[ -d "$PROJECT_ROOT/tests/architecture" ]]; then
-      run_check "Architecture tests (pytest)" "cd '$PROJECT_ROOT' && $prefix pytest tests/architecture/ --tb=short -q 2>&1" || true
+      run_check "Architecture tests (pytest)" "cd '$PROJECT_ROOT' && ${prefix}pytest tests/architecture/ --tb=short -q 2>&1" || true
     fi
   fi
 }
