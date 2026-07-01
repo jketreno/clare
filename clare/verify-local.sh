@@ -398,7 +398,9 @@ run_clare2_script_parity_check() {
 
   local -a parity_rules=(
     "clare/templates/scripts/clare2-capture-event.sh|clare/scripts/clare2-capture-event.sh"
+    "clare/templates/scripts/clare2-capture-event.sh|install/clare/templates/scripts/clare2-capture-event.sh"
     "clare/templates/scripts/clare2-install-hooks.sh|clare/scripts/clare2-install-hooks.sh"
+    "clare/templates/scripts/clare2-install-hooks.sh|install/clare/templates/scripts/clare2-install-hooks.sh"
   )
 
   local has_error=false
