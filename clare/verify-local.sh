@@ -393,6 +393,48 @@ run_vscode_merge_smoke_check() {
   rm -f "$output_file"
 }
 
+run_clare2_script_parity_check() {
+  section "CLARE2 Script Parity"
+
+  local -a parity_rules=(
+    "clare/templates/scripts/clare2-capture-event.sh|clare/scripts/clare2-capture-event.sh"
+    "clare/templates/scripts/clare2-install-hooks.sh|clare/scripts/clare2-install-hooks.sh"
+  )
+
+  local has_error=false
+  local entry template installed
+
+  for entry in "${parity_rules[@]}"; do
+    IFS='|' read -r template installed <<<"$entry"
+
+    if [[ ! -f "$PROJECT_ROOT/$template" ]]; then
+      echo "Missing template: $template" >&2
+      has_error=true
+      continue
+    fi
+
+    if [[ ! -f "$PROJECT_ROOT/$installed" ]]; then
+      echo "Missing installed copy: $installed (run clare2-install-hooks.sh?)" >&2
+      has_error=true
+      continue
+    fi
+
+    if ! cmp -s "$PROJECT_ROOT/$template" "$PROJECT_ROOT/$installed"; then
+      echo "Parity mismatch:" >&2
+      echo "  template: $template" >&2
+      echo "  installed: $installed" >&2
+      echo "  Sync with: cp $template $installed" >&2
+      has_error=true
+    fi
+  done
+
+  if [[ "$has_error" == "true" ]]; then
+    fail "CLARE2 script parity (templates vs clare/scripts)"
+  else
+    pass "CLARE2 script parity (templates vs clare/scripts)"
+  fi
+}
+
 run_agent_environment_parity_check() {
   section "Agent Environment Parity"
 
@@ -480,6 +522,8 @@ else
 
   run_forbidden_pipeline_check "${shell_rel_files[@]}"
 fi
+
+run_clare2_script_parity_check
 
 run_agent_environment_parity_check
 
