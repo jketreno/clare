@@ -55,7 +55,6 @@ readonly CLARE_RELATED_PATHS=(
   "AGENTS.md"
   ".cursorrules"
   ".gitignore"
-  "CLARE-NEXT.md"
 )
 
 if [[ -t 0 && -t 1 ]]; then
