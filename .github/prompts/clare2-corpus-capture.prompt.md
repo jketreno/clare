@@ -7,22 +7,38 @@ mode: agent
 # CLARE2 Corpus Capture
 
 Use deterministic lifecycle hooks to send useful agent interactions into the
-local CLARE2 corpus. The installed hooks support Codex, Claude Code, and
-GitHub Copilot CLI. This skill is also mirrored as guidance for Cursor and
-other agents without a compatible lifecycle hook.
+local CLARE2 corpus. Sessions are captured per-project under a shared user
+corpus at `~/.config/clare/corpus`, partitioned by project name. Each project
+builds its own adapter.
+
+## Agent support matrix
+
+| Agent | Capture supported | Notes |
+|---|---|---|
+| Claude Code | Yes | Hooks in `.claude/settings.json` |
+| Codex | Yes | Hooks in `.codex/hooks.json` |
+| GitHub CoPilot | Unverified | Template written to `.github/hooks/clare2-corpus.json`; confirm this path matches your `gh copilot` version |
+| Zoo Code | No | VSCode extension API does not expose compatible lifecycle hooks |
 
 ## Configuration
 
-Set one of these before starting an agent:
+`clare-installer.sh` sets `CLARE2_CORPUS_ROOT` automatically, creates
+`~/.config/clare/corpus`, and symlinks the project's `corpus/` directory there
+so the pipeline container resolves the same data. Run:
 
 ```bash
-export CLARE2_CORPUS_ROOT=/absolute/path/to/ai-vllm/corpus
-# Or:
-export CLARE2_ROOT=/absolute/path/to/ai-vllm
+./scripts/clare-installer.sh --update --target /path/to/project
+```
+
+If you need to set it manually:
+
+```bash
+export CLARE2_CORPUS_ROOT="$HOME/.config/clare/corpus"
 ```
 
 `CLARE2_SESSION_FILE` takes precedence when an existing wrapper or command has
-already initialized a session.
+already initialized a session. `CLARE2_PROJECT_ID` overrides the project name
+derived from `git rev-parse --show-toplevel` basename (used by default).
 
 Text content is redacted and limited to 12,000 characters by default. Set
 `CLARE2_CAPTURE_MAX_CHARS` to a smaller non-negative integer, or `0` to disable
