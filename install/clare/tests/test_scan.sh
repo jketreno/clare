@@ -96,6 +96,8 @@ if not gaps:
     raise SystemExit('expected fixture coverage gaps')
 if 'deployment' not in data['agentPrompts'][0]['prompt'].lower():
     raise SystemExit('agent prompt should mention deployment')
+if 'subdirector' not in data['agentPrompts'][0]['prompt'].lower():
+    raise SystemExit('agent prompt should mention subdirectory project scoping')
 PY
 
 # Invariant: --apply-extensions must compose with --json. It must write the

@@ -436,6 +436,24 @@ matches_any_file_type() {
   return 1
 }
 
+relpath_from_dir() {
+  local abs_path="$1"
+  local base_dir="$2"
+
+  if command -v realpath >/dev/null 2>&1; then
+    realpath --relative-to="$base_dir" "$abs_path" 2>/dev/null && return 0
+  fi
+
+  case "$abs_path" in
+    "$base_dir"/*)
+      printf '%s\n' "${abs_path#"$base_dir/"}"
+      ;;
+    *)
+      printf '%s\n' "$abs_path"
+      ;;
+  esac
+}
+
 is_extension_excluded() {
   local rel_path="$1"
   local exclude_patterns="$2"
@@ -488,6 +506,44 @@ collect_extension_files() {
   return 0
 }
 
+eslint_config_exists_in_or_above() {
+  local dir="$1"
+
+  while [[ "$dir" == "$PROJECT_ROOT" || "$dir" == "$PROJECT_ROOT/"* ]]; do
+    if [[ -f "$dir/.eslintrc.js" ||
+      -f "$dir/.eslintrc.cjs" ||
+      -f "$dir/.eslintrc.json" ||
+      -f "$dir/eslint.config.js" ||
+      -f "$dir/eslint.config.mjs" ||
+      -f "$dir/eslint.config.cjs" ]]; then
+      return 0
+    fi
+
+    [[ "$dir" == "$PROJECT_ROOT" ]] && break
+    dir="$(dirname "$dir")"
+  done
+
+  return 1
+}
+
+node_project_dir_for_file() {
+  local file_path="$1"
+  local dir
+  dir="$(dirname "$file_path")"
+
+  while [[ "$dir" == "$PROJECT_ROOT" || "$dir" == "$PROJECT_ROOT/"* ]]; do
+    if [[ -f "$dir/package.json" ]]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+
+    [[ "$dir" == "$PROJECT_ROOT" ]] && break
+    dir="$(dirname "$dir")"
+  done
+
+  printf '%s\n' "$PROJECT_ROOT"
+}
+
 run_eslint_complexity_check() {
   local command="$1"
   local threshold="$2"
@@ -496,70 +552,91 @@ run_eslint_complexity_check() {
   local file_types="${5:-js jsx ts tsx}"
   local exclude_patterns="$6"
 
-  eslint_config_exists() {
-    local config_name
-    for config_name in eslint.config.js eslint.config.mjs eslint.config.cjs; do
-      [[ -f "$PROJECT_ROOT/$config_name" ]] && return 0
-    done
-    return 1
-  }
-
   local files=()
   mapfile -t files < <(collect_extension_files "ESLint complexity" "$scan_paths" "$file_types" "$exclude_patterns" || true)
   [[ ${#files[@]} -eq 0 ]] && return 0
 
-  local eslint_cmd=()
-  if [[ "$command" == "npx" ]]; then
-    if ! node_tool_command eslint_cmd "eslint" "eslint"; then
-      eslint_cmd=("npx" "--no-install" "eslint")
+  local -A project_files=()
+  local file project_dir
+  for file in "${files[@]}"; do
+    project_dir="$(node_project_dir_for_file "$file")"
+    project_files["$project_dir"]+="${file}"$'\n'
+  done
+
+  for project_dir in "${!project_files[@]}"; do
+    local eslint_cmd=()
+    if [[ "$command" == "npx" ]]; then
+      if ! node_tool_command_for_root eslint_cmd "$project_dir" "eslint" "eslint"; then
+        if ! node_tool_command eslint_cmd "eslint" "eslint"; then
+          eslint_cmd=("npx" "--no-install" "eslint")
+        fi
+      fi
+    else
+      eslint_cmd=("$command")
     fi
-  else
-    eslint_cmd=("$command")
-  fi
 
-  if [[ -n "$threshold" ]]; then
-    eslint_cmd+=("--rule" "complexity: [\"error\", $threshold]")
-  fi
+    if [[ -n "$threshold" ]]; then
+      eslint_cmd+=("--rule" "complexity: [\"error\", $threshold]")
+    fi
 
-  if [[ -n "$extra_flags" ]]; then
-    # Intentional word splitting for a user-specified flag string.
-    # shellcheck disable=SC2206
-    local extra_parts=($extra_flags)
-    eslint_cmd+=("${extra_parts[@]}")
-  fi
+    if [[ -n "$extra_flags" ]]; then
+      # Intentional word splitting for a user-specified flag string.
+      # shellcheck disable=SC2206
+      local extra_parts=($extra_flags)
+      eslint_cmd+=("${extra_parts[@]}")
+    fi
 
-  local has_eslint_config=true
-  if ! eslint_config_exists; then
-    has_eslint_config=false
-  fi
+    local project_label
+    project_label="$(relpath_from_dir "$project_dir" "$PROJECT_ROOT")"
+    [[ "$project_label" == "." ]] || info "ESLint complexity scoped to Node project: $project_label"
 
-  if [[ "$has_eslint_config" == "false" ]]; then
-    eslint_cmd+=("--no-config-lookup")
+    local has_eslint_config=true
+    if ! eslint_config_exists_in_or_above "$project_dir"; then
+      has_eslint_config=false
+    fi
 
-    # In no-config mode ESLint cannot parse TS/TSX without a configured parser.
-    local filtered_files=()
+    local group_files=()
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      group_files+=("$file")
+    done <<<"${project_files[$project_dir]}"
+
+    if [[ "$has_eslint_config" == "false" ]]; then
+      eslint_cmd+=("--no-config-lookup")
+
+      # In no-config mode ESLint cannot parse TS/TSX without a configured parser.
+      local filtered_files=()
+      local file_path
+      for file_path in "${group_files[@]}"; do
+        case "$file_path" in
+          *.ts | *.tsx) ;;
+          *) filtered_files+=("$file_path") ;;
+        esac
+      done
+
+      if [[ ${#filtered_files[@]} -eq 0 ]]; then
+        warn "ESLint complexity: no eslint.config.* found for $project_label and only TS/TSX files matched; skipping" >&2
+        continue
+      fi
+
+      group_files=("${filtered_files[@]}")
+      warn "ESLint complexity: no eslint.config.* found for $project_label; using --no-config-lookup and JS/JSX files only" >&2
+    fi
+
+    local rel_files=()
     local file_path
-    for file_path in "${files[@]}"; do
-      case "$file_path" in
-        *.ts | *.tsx) ;;
-        *) filtered_files+=("$file_path") ;;
-      esac
+    for file_path in "${group_files[@]}"; do
+      rel_files+=("$(relpath_from_dir "$file_path" "$project_dir")")
     done
 
-    if [[ ${#filtered_files[@]} -eq 0 ]]; then
-      warn "ESLint complexity: no eslint.config.* found and only TS/TSX files matched; skipping" >&2
-      return 0
-    fi
+    eslint_cmd+=("${rel_files[@]}")
 
-    files=("${filtered_files[@]}")
-    warn "ESLint complexity: no eslint.config.* found; using --no-config-lookup and JS/JSX files only" >&2
-  fi
-
-  eslint_cmd+=("${files[@]}")
-
-  local cmd_string
-  printf -v cmd_string '%q ' "${eslint_cmd[@]}"
-  run_check "ESLint complexity (TypeScript/JavaScript)" "$cmd_string 2>&1" || true
+    local cmd_string
+    local project_dir_q
+    printf -v cmd_string '%q ' "${eslint_cmd[@]}"
+    printf -v project_dir_q '%q' "$project_dir"
+    run_check "ESLint complexity (TypeScript/JavaScript: $project_label)" "cd $project_dir_q && $cmd_string 2>&1" || true
+  done
 }
 
 run_golangci_lint_complexity_check() {
@@ -799,10 +876,11 @@ node_tool_flags() {
 }
 
 resolve_node_package_bin() {
-  local package_name="$1"
-  local bin_name="$2"
+  local project_root="$1"
+  local package_name="$2"
+  local bin_name="$3"
 
-  node - "$PROJECT_ROOT" "$package_name" "$bin_name" <<'NODE'
+  node - "$project_root" "$package_name" "$bin_name" <<'NODE'
 const path = require('node:path');
 
 const [projectRoot, packageName, binName] = process.argv.slice(2);
@@ -827,15 +905,16 @@ console.log(path.resolve(path.dirname(packageJsonPath), binPath));
 NODE
 }
 
-node_tool_command() {
+node_tool_command_for_root() {
   local out_ref="$1"
-  local package_name="$2"
-  local bin_name="$3"
+  local project_root="$2"
+  local package_name="$3"
+  local bin_name="$4"
   local -n out_cmd="$out_ref"
   local bin_path flags
 
   out_cmd=()
-  bin_path="$(resolve_node_package_bin "$package_name" "$bin_name")" || return 1
+  bin_path="$(resolve_node_package_bin "$project_root" "$package_name" "$bin_name")" || return 1
   flags="$(node_tool_flags)"
 
   out_cmd=("node")
@@ -846,6 +925,14 @@ node_tool_command() {
     out_cmd+=("${flag_parts[@]}")
   fi
   out_cmd+=("$bin_path")
+}
+
+node_tool_command() {
+  local out_ref="$1"
+  local package_name="$2"
+  local bin_name="$3"
+
+  node_tool_command_for_root "$out_ref" "$PROJECT_ROOT" "$package_name" "$bin_name"
 }
 
 run_node_lint_checks() {

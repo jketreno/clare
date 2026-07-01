@@ -405,9 +405,9 @@ for surface in surfaces:
         gaps.append(entry)
 
 if gaps:
-    prompt = """Analyze this repository's detected build, lint, test, and deployment surfaces and update CLARE so ./clare/verify-ci.sh catches the gates required before deployment. Use the detected surfaces in CLARE-NEXT.md or clare/scripts/clare-env-scan.sh --json. Update project-owned CLARE files only, such as clare/verify-local.sh, clare/extensions.yml, or clare/autonomy.yml when appropriate. Do not edit CLARE-owned generated files or humans-only paths. Prefer checks that run the same commands used by deployment, including containerized commands when deployment uses containers. After changes, run ./clare/verify-ci.sh once and report PASS/FAIL."""
+    prompt = """Analyze this repository's detected build, lint, test, and deployment surfaces and update CLARE so ./clare/verify-ci.sh catches the gates required before deployment. Use the detected surfaces in CLARE-NEXT.md or clare/scripts/clare-env-scan.sh --json. Update project-owned CLARE files only, such as clare/verify-local.sh, clare/extensions.yml, or clare/autonomy.yml when appropriate. Do not edit CLARE-owned generated files or humans-only paths. Prefer checks that run the same commands used by deployment, including containerized commands when deployment uses containers. When detected projects live in subdirectories, scope CLARE extension paths and custom commands to those owning project directories (for example frontend/package.json -> frontend/src) instead of assuming repository-root tool configuration. After changes, run ./clare/verify-ci.sh once and report PASS/FAIL."""
 else:
-    prompt = """Review this repository's CLARE setup and confirm that ./clare/verify-ci.sh covers the same build, lint, test, and deployment gates used before release. If you find gaps, update project-owned CLARE files only and run ./clare/verify-ci.sh once."""
+    prompt = """Review this repository's CLARE setup and confirm that ./clare/verify-ci.sh covers the same build, lint, test, and deployment gates used before release. Confirm CLARE extensions are scoped to detected subdirectory projects when their tool configuration is not owned by the repository root. If you find gaps, update project-owned CLARE files only and run ./clare/verify-ci.sh once."""
 
 agent_prompts = [
     {

@@ -50,6 +50,7 @@ write_extensions_file() {
   local command_name="$3"
   local threshold="$4"
   local file_types="$5"
+  local paths="${6:-src}"
 
   cat >"$project_root/clare/extensions.yml" <<EOF
 extensions:
@@ -62,7 +63,7 @@ extensions:
     options:
       threshold: $threshold
       file_types: "$file_types"
-      paths: "src"
+      paths: "$paths"
       exclude: ""
       extra_flags: ""
   - name: file-size
@@ -187,6 +188,38 @@ export function easy(a) {
 }
 EOF
   run_verify_case "$pass_project" 0 "TypeScript fixture passes at safe threshold"
+
+  local scoped_project="$TMP_ROOT/ts-scoped"
+  mkdir -p "$scoped_project/frontend/src"
+  copy_core_clare_files "$scoped_project"
+  ln -s "$REPO_ROOT/node_modules" "$scoped_project/frontend/node_modules"
+  write_extensions_file "$scoped_project" "eslint-complexity" "npx" "99" "js" "frontend/src"
+  cat >"$scoped_project/frontend/package.json" <<'EOF'
+{"devDependencies":{"eslint":"^8.0.0"}}
+EOF
+  cat >"$scoped_project/frontend/eslint.config.js" <<'EOF'
+module.exports = [
+  {
+    files: ["**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+    },
+    rules: {
+      "no-restricted-syntax": ["error", "IfStatement"],
+    },
+  },
+];
+EOF
+  cat >"$scoped_project/frontend/src/sample.js" <<'EOF'
+export function scoped(a) {
+  if (a) {
+    return 1;
+  }
+  return 0;
+}
+EOF
+  run_verify_case "$scoped_project" 1 "TypeScript extension honors nested project ESLint config"
 }
 
 validate_go() {
