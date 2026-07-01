@@ -74,26 +74,21 @@ modules:
     level: supervised
     reason: "Branding and visual assets — prefer human sign-off"
 
+  - path: "docker"
+    level: supervised
+    reason: "CI container image definition; changes affect the build environment for all contributors"
+
   # ── Humans only ────────────────────────────────────────────────────────────
-  # Optional: canonical narrative / history — disable AI rewriting.
 
   - path: "ORIGIN.md"
     level: humans-only
     reason: "Historical origin narrative; avoid AI paraphrase that could distort facts"
 
+  - path: "dist"
+    level: humans-only
+    reason: "Generated release artifacts; produced by scripts/release.sh, never hand-edited"
+
   # ── Default ─────────────────────────────────────────────────────────────────
-  - path: "clare2"
-    level: supervised
-    reason: "Project-owned CLARE2 service; changes require human review"
-
-  - path: "clare2/templates/hooks"
-    level: humans-only
-    reason: "Authoritative provider hook definitions; CLARE consumes but does not overwrite these assets"
-
-  - path: "clare2/scripts/clare2-install-hooks.sh"
-    level: humans-only
-    reason: "Authoritative hook installer; changes affect every configured agent provider"
-
   - path: "*"
     level: supervised
     reason: "Root-level configs (README, CLAUDE.md, .cursorrules) and anything unmatched"
@@ -133,3 +128,8 @@ sources_of_truth:
     source_of_truth: "install/"
     defined_in: "install/ directory tree"
     note: "The install/ directory defines what gets installed into target projects; scripts/clare-installer.sh reads from it"
+
+  - concept: "CI container environment"
+    source_of_truth: "docker/Dockerfile"
+    defined_in: "docker/Dockerfile"
+    note: "Defines the toolchain (Node, Go, shellcheck, shfmt, etc.) used in CI; verify-ci.sh must pass inside this image"
