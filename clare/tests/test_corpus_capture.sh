@@ -9,11 +9,11 @@ trap 'rm -rf "$TEMP"' EXIT
 
 test_capture_records_and_redacts() {
   local corpus="$TEMP/corpus"
-  CLARE2_CORPUS_ROOT="$corpus" \
-    printf '%s' '{"session_id":"s1","turn_id":"t1","prompt":"token=secret"}' \
-    | CLARE2_CORPUS_ROOT="$corpus" "$CAPTURE" codex user_prompt
+  printf '%s' '{"session_id":"s1","turn_id":"t1","prompt":"token=secret"}' \
+    | CLARE2_CORPUS_ROOT="$corpus" CLARE2_PROJECT_ID="testproject" \
+      "$CAPTURE" codex user_prompt
 
-  local session="$corpus/sessions/$(date -u +%Y/%m/%d)/codex-s1.jsonl"
+  local session="$corpus/sessions/testproject/$(date -u +%Y/%m/%d)/codex-s1.jsonl"
   jq -e -s '
     length == 2
     and .[0].type == "session_meta"
@@ -36,10 +36,10 @@ test_capture_redacts_common_secret_forms_and_bounds_content() {
   jq -cn \
     --arg prompt "$prompt" \
     '{session_id:"sensitive",prompt:$prompt}' \
-    | CLARE2_CORPUS_ROOT="$corpus" CLARE2_CAPTURE_MAX_CHARS=220 \
-      "$CAPTURE" codex user_prompt
+    | CLARE2_CORPUS_ROOT="$corpus" CLARE2_PROJECT_ID="testproject" \
+      CLARE2_CAPTURE_MAX_CHARS=220 "$CAPTURE" codex user_prompt
 
-  local session="$corpus/sessions/$(date -u +%Y/%m/%d)/codex-sensitive.jsonl"
+  local session="$corpus/sessions/testproject/$(date -u +%Y/%m/%d)/codex-sensitive.jsonl"
   jq -e -s '
     .[1].content
     | contains("Authorization: Basic dXNlcjpwYXNz") | not
@@ -64,8 +64,8 @@ test_capture_redacts_common_secret_forms_and_bounds_content() {
 test_zero_content_limit_disables_interaction_capture() {
   local corpus="$TEMP/disabled-corpus"
   printf '%s' '{"session_id":"disabled","prompt":"do not persist"}' \
-    | CLARE2_CORPUS_ROOT="$corpus" CLARE2_CAPTURE_MAX_CHARS=0 \
-      "$CAPTURE" codex user_prompt
+    | CLARE2_CORPUS_ROOT="$corpus" CLARE2_PROJECT_ID="testproject" \
+      CLARE2_CAPTURE_MAX_CHARS=0 "$CAPTURE" codex user_prompt
 
   [[ ! -e "$corpus" ]]
 }
