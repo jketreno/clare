@@ -301,6 +301,47 @@ run_corpus_capture_smoke_check() {
   rm -f "$output_file"
 }
 
+run_dockerfile_check() {
+  section "Dockerfile Lint"
+
+  if ! command -v docker >/dev/null 2>&1; then
+    info "docker not available; skipping Dockerfile lint"
+    return 0
+  fi
+
+  local -a dockerfiles=(
+    "docker/Dockerfile"
+    "install/Dockerfile.clare"
+  )
+
+  local has_error=false
+  local df
+  for df in "${dockerfiles[@]}"; do
+    local abs_df="$PROJECT_ROOT/$df"
+    [[ -f "$abs_df" ]] || continue
+
+    local output_file
+    if ! output_file="$(mktemp)"; then
+      fail "Dockerfile lint: $df (failed to create temp file)"
+      has_error=true
+      continue
+    fi
+
+    local context_dir
+    context_dir="$(dirname "$abs_df")"
+    if docker build --check -f "$abs_df" "$context_dir" >"$output_file" 2>&1; then
+      pass "Dockerfile lint: $df"
+    else
+      fail "Dockerfile lint: $df"
+      cat "$output_file"
+      has_error=true
+    fi
+    rm -f "$output_file"
+  done
+
+  [[ "$has_error" == "false" ]]
+}
+
 run_clare_next_smoke_check() {
   section "CLARE-NEXT Installer Guidance"
 
@@ -445,6 +486,8 @@ run_agent_environment_parity_check
 run_env_scan_smoke_check
 
 run_corpus_capture_smoke_check
+
+run_dockerfile_check
 
 run_clare_next_smoke_check
 
