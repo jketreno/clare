@@ -89,6 +89,18 @@ modules:
     reason: "Generated release artifacts; produced by scripts/release.sh, never hand-edited"
 
   # ── Default ─────────────────────────────────────────────────────────────────
+  - path: "clare2"
+    level: supervised
+    reason: "Project-owned CLARE2 service; changes require human review"
+
+  - path: "clare2/templates/hooks"
+    level: humans-only
+    reason: "Authoritative provider hook definitions; CLARE consumes but does not overwrite these assets"
+
+  - path: "clare2/scripts/clare2-install-hooks.sh"
+    level: humans-only
+    reason: "Authoritative hook installer; changes affect every configured agent provider"
+
   - path: "*"
     level: supervised
     reason: "Root-level configs (README, CLAUDE.md, .cursorrules) and anything unmatched"
