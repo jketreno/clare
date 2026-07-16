@@ -18,7 +18,7 @@ Your architecture rules live in code reviews and tribal knowledge. AI can't read
 
 CLARE fixes this: define your rules as automated checks, tell the AI to run them before finishing, and let it self-correct. The AI generates code, runs `verify-ci.sh`, sees the failure, fixes it, and reports done — you never see the violation.
 
-Works with GitHub Copilot, Claude Code, Cursor, Codex, and MCP-compatible agent frameworks.
+Works with GitHub Copilot, Claude Code, Cursor, Codex, Roo/Zoo Code, and MCP-compatible agent frameworks.
 
 Want to know the thought process that led to CLARE's design? Read the [origin story](ORIGIN.md).
 
@@ -169,6 +169,7 @@ AGENTS.md              — Codex config (auto-read at session start)
 CLAUDE.md              — Claude Code config (auto-read at session start)
 .github/               — GitHub Copilot instruction files
 .cursor/rules/         — Cursor MDC rule files
+.roo/                  — Roo/Zoo rules, commands, and selected Agent Skills
 .claude/commands/      — Claude slash commands (/project:verify, check-autonomy, update-autonomy)
 .vscode/               — VS Code tasks, settings, recommended extensions
 ```
@@ -326,5 +327,6 @@ Use `--update` when re-running against a project that already has CLARE installe
 | Claude Code setup | [docs/ai-tools/claude.md](docs/ai-tools/claude.md) |
 | Cursor setup | [docs/ai-tools/cursor.md](docs/ai-tools/cursor.md) |
 | Codex setup | [docs/ai-tools/codex.md](docs/ai-tools/codex.md) |
+| Roo/Zoo Code setup | [docs/ai-tools/roo-zoo.md](docs/ai-tools/roo-zoo.md) |
 | Agentic workflows & MCP | [docs/agentic.md](docs/agentic.md) |
 | Contributing | [DEVELOPERS.md](DEVELOPERS.md) |

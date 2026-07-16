@@ -445,6 +445,7 @@ run_agent_environment_parity_check() {
     "CLAUDE.md|install/root/CLAUDE.md|Claude"
     ".github/copilot-instructions.md|install/.github/copilot-instructions.md|Copilot"
     ".cursorrules|install/root/.cursorrules|Cursor"
+    ".roo/rules/clare.md|install/.roo/rules/clare.md|Roo/Zoo"
   )
 
   local has_error=false
@@ -475,9 +476,9 @@ run_agent_environment_parity_check() {
   done
 
   if [[ "$has_error" == "true" ]]; then
-    fail "Agent config parity (Copilot/Claude/Codex/Cursor)"
+    fail "Agent config parity (Copilot/Claude/Codex/Cursor/Roo/Zoo)"
   else
-    pass "Agent config parity (Copilot/Claude/Codex/Cursor)"
+    pass "Agent config parity (Copilot/Claude/Codex/Cursor/Roo/Zoo)"
   fi
 }
 

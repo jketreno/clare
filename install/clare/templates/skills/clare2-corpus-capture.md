@@ -18,7 +18,7 @@ builds its own adapter.
 | Claude Code | Yes | Hooks in `.claude/settings.json` |
 | Codex | Yes | Hooks in `.codex/hooks.json` |
 | GitHub CoPilot | Unverified | Template written to `.github/hooks/clare2-corpus.json`; confirm this path matches your `gh copilot` version |
-| Zoo Code | No | VSCode extension API does not expose compatible lifecycle hooks |
+| Roo/Zoo Code | Prompt-level | `.roo/rules/clare.md` emits equivalent normalized events; upstream has no deterministic repository hook API |
 
 ## Configuration
 

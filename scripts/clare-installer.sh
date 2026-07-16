@@ -46,6 +46,7 @@ readonly CLARE_RELATED_PATHS=(
   ".github/hooks"
   ".github/prompts"
   ".cursor/rules"
+  ".roo"
   ".claude/commands"
   ".vscode/prompts"
   ".codex/skills"
@@ -1371,7 +1372,7 @@ update_installed_extensions() {
 SETUP_INSTALLED_SKILLS=""
 
 install_skill_item() {
-  # install_skill_item <src_file> <name> <prompts_dir> <claude_commands_dir> <vscode_prompts_dir> <codex_skills_dir> <cursor_rules_dir> <setup_target>
+  # install_skill_item <src_file> <name> <prompts_dir> <claude_commands_dir> <vscode_prompts_dir> <codex_skills_dir> <roo_skills_dir> <cursor_rules_dir> <setup_target>
   local src_file="$1"
   shift
   local name="$1"
@@ -1383,6 +1384,8 @@ install_skill_item() {
   local vscode_prompts_dir="$1"
   shift
   local codex_skills_dir="$1"
+  shift
+  local roo_skills_dir="$1"
   shift
   local cursor_rules_dir="$1"
   shift
@@ -1422,6 +1425,10 @@ install_skill_item() {
     mkdir -p "$codex_skills_dir/$name"
     cp "$src_file" "$codex_skills_dir/$name/SKILL.md"
   fi
+  if [[ -d "$roo_skills_dir" ]]; then
+    mkdir -p "$roo_skills_dir/$name"
+    cp "$src_file" "$roo_skills_dir/$name/SKILL.md"
+  fi
 
   {
     echo "---"
@@ -1439,6 +1446,9 @@ install_skill_item() {
   if [[ -d "$codex_skills_dir" ]]; then
     success "Mirrored: .codex/skills/${name}/SKILL.md"
   fi
+  if [[ -d "$roo_skills_dir" ]]; then
+    success "Mirrored: .roo/skills/${name}/SKILL.md"
+  fi
   SETUP_INSTALLED_SKILLS="$SETUP_INSTALLED_SKILLS $name"
 }
 
@@ -1453,6 +1463,8 @@ setup_install_skills_from_arrays() {
   local cursor_rules_dir="$6"
   local vscode_prompts_dir="$7"
   local codex_skills_dir="$8"
+  local roo_skills_dir="$9"
+  shift
   local setup_target="$9"
   local -a _files=()
   local -a _names=()
@@ -1465,7 +1477,7 @@ setup_install_skills_from_arrays() {
 
   [[ ${#_files[@]} -gt 0 ]] || return 0
 
-  echo "$label (installed to .github/prompts/ and mirrored for Claude/Cursor/VS Code/Codex):"
+  echo "$label (installed to .github/prompts/ and mirrored for Claude/Cursor/VS Code/Codex/Roo/Zoo):"
   echo ""
   local _i
   for _i in "${!_files[@]}"; do
@@ -1525,10 +1537,15 @@ setup_install_skills_from_arrays() {
   else
     mkdir -p "$codex_skills_dir"
   fi
+  if [[ -e "$setup_target/.roo" && ! -d "$setup_target/.roo" ]]; then
+    warn ".roo exists but is not a directory; skipping Roo Code skill mirrors"
+  else
+    mkdir -p "$roo_skills_dir"
+  fi
 
   local idx
   for idx in "${to_install[@]}"; do
-    install_skill_item "${_files[$idx]}" "${_names[$idx]}" "$prompts_dir" "$claude_commands_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$cursor_rules_dir" "$setup_target"
+    install_skill_item "${_files[$idx]}" "${_names[$idx]}" "$prompts_dir" "$claude_commands_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$roo_skills_dir" "$cursor_rules_dir" "$setup_target"
   done
 }
 
@@ -1539,7 +1556,8 @@ setup_step_install_skills() {
   local cursor_rules_dir="$4"
   local vscode_prompts_dir="$5"
   local codex_skills_dir="$6"
-  local setup_target="$7"
+  local roo_skills_dir="$7"
+  local setup_target="$8"
 
   header "CLARE Setup — Step 4: Install Skills [optional]"
   if [[ ! -d "$skills_dir" ]]; then
@@ -1559,7 +1577,7 @@ setup_step_install_skills() {
   done
 
   setup_install_skills_from_arrays "Generic skills" SKILL_FILES SKILL_NAMES SKILL_DESCS \
-    "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$setup_target"
+    "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$roo_skills_dir" "$setup_target"
 }
 
 EXT_NAMES=()
@@ -1929,7 +1947,7 @@ run_setup_flow() {
   local is_fresh_install="${3:-false}"
 
   local skills_dir prompts_dir extensions_file latest_extensions_file
-  local claude_commands_dir cursor_rules_dir vscode_prompts_dir codex_skills_dir
+  local claude_commands_dir cursor_rules_dir vscode_prompts_dir codex_skills_dir roo_skills_dir
 
   skills_dir="$setup_source_root/install/clare/templates/skills"
   prompts_dir="$setup_target/.github/prompts"
@@ -1937,6 +1955,7 @@ run_setup_flow() {
   cursor_rules_dir="$setup_target/.cursor/rules"
   vscode_prompts_dir="$setup_target/.vscode/prompts"
   codex_skills_dir="$setup_target/.codex/skills"
+  roo_skills_dir="$setup_target/.roo/skills"
   extensions_file="$setup_target/clare/extensions.yml"
   latest_extensions_file="$setup_source_root/clare/extensions.yml"
   SETUP_INSTALLED_SKILLS=""
@@ -1965,7 +1984,7 @@ run_setup_flow() {
     success "Ensured scripts are executable"
   fi
 
-  setup_step_install_skills "$skills_dir" "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$setup_target"
+  setup_step_install_skills "$skills_dir" "$prompts_dir" "$claude_commands_dir" "$cursor_rules_dir" "$vscode_prompts_dir" "$codex_skills_dir" "$roo_skills_dir" "$setup_target"
   setup_step_extensions "$extensions_file" "$latest_extensions_file" "$setup_target"
 
   setup_maybe_create_clare_next "$setup_target" "$setup_source_root" "$project_name"
@@ -2261,6 +2280,7 @@ copy_file_update "$SOURCE_ROOT/clare/principles.md" "$TARGET_DIR/clare/principle
 copy_dir_update "$SOURCE_ROOT/install/.github" "$TARGET_DIR/.github" "prompts"
 copy_dir_update "$SOURCE_ROOT/install/.cursor" "$TARGET_DIR/.cursor"
 copy_dir_update "$SOURCE_ROOT/install/.claude" "$TARGET_DIR/.claude"
+copy_dir_update "$SOURCE_ROOT/install/.roo" "$TARGET_DIR/.roo" "skills"
 # .vscode/{settings,extensions,tasks}.json are team-customizable; merge
 # CLARE's recommended keys/entries instead of overwriting them.
 copy_dir_update "$SOURCE_ROOT/install/.vscode" "$TARGET_DIR/.vscode" "" \
@@ -2312,6 +2332,19 @@ if [[ -d "$TARGET_DIR/.codex/skills" ]]; then
       prompt_update_file "$src_skill" "$skill_file" || exit "$EXIT_ABORT"
     fi
   done < <(find "$TARGET_DIR/.codex/skills" -path "*/SKILL.md" -type f | sort)
+fi
+
+if [[ -d "$TARGET_DIR/.roo/skills" ]]; then
+  while IFS= read -r skill_file; do
+    skill_name="$(basename "$(dirname "$skill_file")")"
+    src_skill=""
+    if [[ -f "$SOURCE_ROOT/install/clare/templates/skills/${skill_name}.md" ]]; then
+      src_skill="$SOURCE_ROOT/install/clare/templates/skills/${skill_name}.md"
+    fi
+    if [[ -n "$src_skill" ]]; then
+      prompt_update_file "$src_skill" "$skill_file" || exit "$EXIT_ABORT"
+    fi
+  done < <(find "$TARGET_DIR/.roo/skills" -path "*/SKILL.md" -type f | sort)
 fi
 
 if [[ -d "$TARGET_DIR/clare" ]]; then

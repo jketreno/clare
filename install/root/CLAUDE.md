@@ -36,6 +36,7 @@ Supported environments:
 - Claude: `CLAUDE.md` and `install/root/CLAUDE.md`
 - Codex: `AGENTS.md` and `install/root/AGENTS.md`
 - Cursor: `.cursorrules` and `install/root/.cursorrules`
+- Roo/Zoo Code: `.roo/rules/clare.md` and `install/.roo/rules/clare.md`
 
 This includes rule updates, skill/workflow guidance, and CLARE installer-facing agent instructions.
 

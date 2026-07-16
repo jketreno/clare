@@ -11,6 +11,7 @@ When CLARE agent configuration changes, update all supported agent environments 
 - Claude: `CLAUDE.md` and `install/root/CLAUDE.md`
 - Codex: `AGENTS.md` and `install/root/AGENTS.md`
 - Cursor: `.cursorrules` and `install/root/.cursorrules`
+- Roo/Zoo Code: `.roo/rules/clare.md` and `install/.roo/rules/clare.md`
 
 ## Before Any File Change
 Check `clare/autonomy.yml` for the file path:
