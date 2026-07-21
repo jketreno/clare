@@ -161,15 +161,25 @@ $CLARE2_ROOT/corpus/sessions/YYYY/MM/DD/<session-id>.jsonl
 ```
 
 The setup command's `--capture-project` option installs project-local hooks
-(under `$CLARE_ROOT`) for all supported agents, normalizing each platform's
-session-start, user-prompt, tool-result, and stop events into `interaction`
-records:
+(under `$CLARE_ROOT`) for all supported agents. It captures visible prompts,
+responses, interactive dialog, tool outcomes, compaction, subagents, and
+lifecycle events without storing arbitrary tool input or output:
 
-- **Codex**: `.codex/hooks.json` — `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Stop`
-- **Claude Code**: `.claude/settings.json` — `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Stop`
-- **GitHub Copilot**: `.github/hooks/clare2-corpus.json` — `sessionStart`, `userPromptSubmitted`, `postToolUse`, `agentStop`
+- **Codex 0.144.1**: `.codex/hooks.json` — prompts, final responses,
+  `request_user_input`, tools, compaction, and subagents
+- **Claude Code**: `.claude/settings.json` — `MessageDisplay` responses,
+  `AskUserQuestion`, successful/failed tools, compaction, subagents, failures,
+  and session lifecycle
+- **GitHub Copilot**: `.github/hooks/clare2-corpus.json` — prompts, `ask_user`,
+  successful/failed tools, compaction, subagents, errors, and session lifecycle
 
-These hooks normalize agent events into `interaction` records. Launch any agent
+Copilot's documented `agentStop` event does not include assistant text, so it
+produces a privacy-safe `turn_complete` record. Set
+`CLARE2_COPILOT_TRANSCRIPT_FALLBACK=1` only to opt in to parsing Copilot's
+unstable private transcript format.
+
+These hooks normalize agent events into `interaction`, `tool_result`, and
+`session_event` records. Launch any agent
 through the wrapper so the hooks and child commands share one `CLARE2_SESSION_FILE`:
 
 ```bash
@@ -179,8 +189,9 @@ cd "$CLARE2_ROOT"
 
 In Codex, run `/hooks` once after installation or changes and trust the
 project-local hook definitions. Capture starts on the next wrapped session.
-The resulting JSONL contains user prompts and final assistant messages, so
-treat `corpus/` as sensitive data and keep secrets out of prompts.
+The resulting JSONL contains visible user and assistant messages, including
+interactive answers, so treat `corpus/` as sensitive data and keep secrets out
+of prompts.
 
 ### B. CLARE verification events
 ```bash

@@ -22,12 +22,56 @@
         ]
       }
     ],
+    "MessageDisplay": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude assistant_message_delta",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude interactive_prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude tool_result",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude interactive_response",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude tool_failure",
             "timeout": 10
           }
         ]
@@ -39,6 +83,72 @@
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude assistant_stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude turn_failure",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude subagent_start",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude subagent_stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude pre_compact",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude post_compact",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" claude session_end",
             "timeout": 10
           }
         ]

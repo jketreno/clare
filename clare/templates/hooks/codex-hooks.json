@@ -22,12 +22,34 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "request_user_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex interactive_prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex tool_result",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "request_user_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex interactive_response",
             "timeout": 10
           }
         ]
@@ -39,6 +61,50 @@
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex assistant_stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex subagent_start",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex subagent_stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex pre_compact",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/clare/scripts/clare2-capture-event.sh\" codex post_compact",
             "timeout": 10
           }
         ]

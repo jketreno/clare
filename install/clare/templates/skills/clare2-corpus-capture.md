@@ -15,9 +15,9 @@ builds its own adapter.
 
 | Agent | Capture supported | Notes |
 |---|---|---|
-| Claude Code | Yes | Hooks in `.claude/settings.json` |
-| Codex | Yes | Hooks in `.codex/hooks.json` |
-| GitHub CoPilot | Unverified | Template written to `.github/hooks/clare2-corpus.json`; confirm this path matches your `gh copilot` version |
+| Claude Code | Yes | Visible message deltas, elicitation, tools, subagents, compaction, and session lifecycle in `.claude/settings.json` |
+| Codex 0.144.1 | Yes | Final responses, elicitation, tools, subagents, and compaction in `.codex/hooks.json` |
+| GitHub Copilot | Yes | Elicitation, tools, subagents, compaction, failures, and lifecycle in `.github/hooks/clare2-corpus.json`; assistant text fallback is opt-in |
 | Roo/Zoo Code | Prompt-level | `.roo/rules/clare.md` emits equivalent normalized events; upstream has no deterministic repository hook API |
 
 ## Configuration
@@ -45,6 +45,11 @@ Text content is redacted and limited to 12,000 characters by default. Set
 prompt, response, and correction text capture while retaining lifecycle and
 tool outcome events.
 
+Copilot's documented `agentStop` hook does not expose assistant text. By
+default CLARE records a privacy-safe `turn_complete` event. To explicitly opt
+in to parsing Copilot's unstable private transcript format for assistant text,
+set `CLARE2_COPILOT_TRANSCRIPT_FALLBACK=1` before starting Copilot.
+
 Reinstall or repair the project hooks with:
 
 ```bash
@@ -58,9 +63,10 @@ Hooks are fail-open. If the corpus is unavailable, normal agent work continues.
 Capture observable evidence:
 
 - submitted user prompts
-- final assistant responses when the provider exposes them
+- visible assistant messages and final responses when the provider exposes them
+- interactive questions and their visible answers
 - tool names and success/failure outcomes, without raw arguments or output
-- session lifecycle events
+- session, compaction, and subagent lifecycle events
 - `verify-ci.sh` results and corrections already emitted by CLARE
 
 Never capture:
@@ -68,7 +74,8 @@ Never capture:
 - credentials, authorization headers, environment dumps, or secret files
 - hidden reasoning or chain-of-thought
 - raw tool arguments, command output, or complete source files
-- private provider transcript files or undocumented cache formats
+- private provider transcript files or undocumented cache formats, except the
+  explicit Copilot fallback described above
 - internal CLARE2 distillation, evaluation, or summarization requests
 
 Treat `corpus/` as sensitive local data. Do not commit it.
@@ -106,4 +113,5 @@ completed-turn extension points. Do not scrape their private log directories.
    jq -e . <path-to-session.jsonl> >/dev/null
    ```
 
-4. Confirm the file contains `session_meta` and `interaction` records.
+4. Confirm the file contains ordered user and assistant `interaction` records,
+   with one assistant record per visible response.

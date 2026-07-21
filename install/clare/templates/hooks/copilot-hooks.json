@@ -17,10 +17,34 @@
         "timeoutSec": 10
       }
     ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot interactive_prompt",
+        "cwd": ".",
+        "matcher": "^ask_user$",
+        "timeoutSec": 10
+      }
+    ],
     "postToolUse": [
       {
         "type": "command",
         "bash": "./clare/scripts/clare2-capture-event.sh copilot tool_result",
+        "cwd": ".",
+        "timeoutSec": 10
+      },
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot interactive_response",
+        "cwd": ".",
+        "matcher": "^ask_user$",
+        "timeoutSec": 10
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot tool_failure",
         "cwd": ".",
         "timeoutSec": 10
       }
@@ -29,6 +53,46 @@
       {
         "type": "command",
         "bash": "./clare/scripts/clare2-capture-event.sh copilot assistant_stop",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "subagentStart": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot subagent_start",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "subagentStop": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot subagent_stop",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot error_occurred",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot pre_compact",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "./clare/scripts/clare2-capture-event.sh copilot session_end",
         "cwd": ".",
         "timeoutSec": 10
       }

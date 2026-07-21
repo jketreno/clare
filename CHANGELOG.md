@@ -2,6 +2,22 @@
 
 All notable user-facing changes to this project are documented in this file.
 
+## Unreleased
+
+### Added
+
+- Captured visible Claude message deltas, interactive dialog, provider failure
+  events, compaction, subagents, and session lifecycle across supported agents.
+- Added optional message/tool identifiers and elicitation metadata to normalized
+  interactions while preserving the existing record contract.
+
+### Changed
+
+- Made Copilot assistant transcript parsing opt-in through
+  `CLARE2_COPILOT_TRANSCRIPT_FALLBACK=1`; the default records `turn_complete`
+  without reading private transcript files.
+- Expanded corpus capture regression coverage and provider hook merge checks.
+
 ## v1.5.0 - 2026-06-13
 
 ### Added
